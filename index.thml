@@ -1,0 +1,2408 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart CPR BIDI Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary-green: #198754;
+      --light-mint: #d1f2eb;
+      --bold-mint: #20c997;
+    }
+    body { background-color: #f4fcf9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+    .header-bar { background: linear-gradient(135deg, var(--primary-green), var(--bold-mint)); color: white; padding: 15px 20px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 10px rgba(32, 201, 151, 0.3); gap: 12px; }
+    .header-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: var(--primary-green); flex-shrink: 0; }
+    .sync-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.8rem; font-weight: 600; background: rgba(255,255,255,0.22); padding: 2px 10px; border-radius: 20px; }
+    .sync-badge.warn { background: #ffc107; color: #212529; }
+
+    .main-timer-card { background: white; border-radius: 25px; padding: 30px; text-align: center; box-shadow: 0 10px 30px rgba(25, 135, 84, 0.15); border: 4px solid var(--bold-mint); }
+    .main-timer-display { font-size: 7rem; font-weight: 900; line-height: 1; color: var(--primary-green); font-variant-numeric: tabular-nums; }
+    .main-timer-display.rosc { color: #0d6efd; }
+    .case-line { color: #6c757d; font-weight: 600; margin-top: 6px; min-height: 1.4em; }
+    .btn-start-cpr { font-size: 2.5rem; font-weight: 800; border-radius: 50px; padding: 15px 40px; box-shadow: 0 8px 20px rgba(25, 135, 84, 0.3); transition: transform 0.1s; }
+    .btn-start-cpr:active { transform: scale(0.95); }
+
+    .metro-strip { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px; background: var(--light-mint); border-radius: 18px; padding: 12px 14px; }
+    .beat-dot { width: 66px; height: 66px; border-radius: 50%; border: 3px solid var(--bold-mint); background: white; color: var(--primary-green); font-weight: 800; font-size: 1.25rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.07s, background 0.07s; font-variant-numeric: tabular-nums; }
+    .beat-dot.on { background: var(--primary-green); color: white; transform: scale(1.08); }
+    .beat-dot.breath { background: #0dcaf0; border-color: #0dcaf0; color: #052c33; font-size: 0.8rem; }
+    .beat-dot.vent { box-shadow: 0 0 0 7px rgba(13, 202, 240, 0.35); }
+    .beat-dot.muted { opacity: 0.5; }
+    .metro-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+    .metro-note { font-size: 0.85rem; color: #495057; text-align: left; }
+
+    .sub-timer-card { background: white; border-radius: 20px; padding: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 5px solid var(--bold-mint); display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+    .sub-timer-display { font-size: 3.5rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #333; margin: 10px 0 4px; }
+    .sub-timer-display.warn { color: #fd7e14; }
+    .sub-timer-display.alert-time { color: #dc3545; }
+    .sub-timer-display.ok-time { color: #0d6efd; }
+    .timer-hint { font-size: 0.9rem; color: #6c757d; min-height: 1.4em; margin-bottom: 10px; }
+    .progress.mint { height: 8px; background: #e9f7f2; margin-bottom: 8px; }
+    .progress.mint .progress-bar { background: var(--bold-mint); transition: width 0.25s linear; }
+    .progress.mint .progress-bar.bg-warning, .progress.mint .progress-bar.bg-danger { transition: none; }
+    .cycle-badge { font-size: 1.5rem; vertical-align: middle; }
+
+    /* ประเมินครั้งแรก + กระบวนการ */
+    .section-card { background: white; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 5px solid var(--bold-mint); margin-bottom: 1.5rem; }
+    .section-card > summary { list-style: none; cursor: pointer; padding: 16px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .section-card > summary::-webkit-details-marker { display: none; }
+    .section-card > summary h5 { margin: 0; font-weight: 700; color: var(--primary-green); }
+    .sec-chev { margin-left: auto; color: var(--primary-green); transition: transform 0.2s; }
+    .section-card[open] .sec-chev { transform: rotate(180deg); }
+    .sec-sub { flex-basis: 100%; font-size: 0.85rem; color: #6c757d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .section-card[open] .sec-sub { display: none; }
+    .section-body { padding: 0 20px 20px; }
+    .check-item { display: flex; align-items: center; gap: 10px; border: 1.5px solid #e3efe9; border-radius: 12px; padding: 10px 12px; background: #fff; height: 100%; }
+    .check-item.on { background: var(--light-mint); border-color: var(--bold-mint); }
+    .check-item .form-check-input { width: 1.5em; height: 1.5em; margin: 0; flex-shrink: 0; cursor: pointer; }
+    .check-item .form-check-input:checked, .cpr-table .form-check-input:checked { background-color: var(--primary-green); border-color: var(--primary-green); }
+    .check-item label { flex: 1; min-width: 0; font-weight: 600; cursor: pointer; margin: 0; }
+    .check-meta { display: block; font-size: 0.8rem; font-weight: 400; color: #495057; }
+    .time-chip { flex-shrink: 0; border: 0; background: var(--primary-green); color: #fff; border-radius: 20px; padding: 4px 11px; font-weight: 700; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+    .proc-item { display: flex; align-items: center; gap: 12px; width: 100%; height: 100%; text-align: left; background: #fff; border: 1.5px solid #e3efe9; border-radius: 12px; padding: 10px 12px; }
+    .proc-item.done { background: var(--light-mint); border-color: var(--bold-mint); }
+    .proc-item.skip { background: #f1f3f5; }
+    .proc-num { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-green); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
+    .proc-item:not(.done):not(.skip) .proc-num { background: #fff; color: var(--primary-green); border: 2px solid var(--bold-mint); }
+    .proc-label { flex: 1; min-width: 0; font-weight: 600; }
+    .proc-label small { display: block; font-weight: 400; color: #495057; }
+    .proc-status { flex-shrink: 0; font-weight: 700; color: var(--primary-green); font-variant-numeric: tabular-nums; }
+    .proc-status.empty { color: #adb5bd; font-weight: 600; font-size: 0.9rem; }
+
+    /* ISBAR */
+    .isbar-block { display: flex; gap: 12px; border: 1.5px solid #e3efe9; border-radius: 14px; padding: 12px; background: #fff; }
+    .isbar-letter { width: 42px; height: 42px; border-radius: 12px; background: var(--primary-green); color: #fff; font-weight: 900; font-size: 1.35rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .isbar-body { flex: 1; min-width: 0; }
+    .isbar-title { font-weight: 800; color: var(--primary-green); margin-bottom: 8px; }
+    .isbar-title span { font-weight: 400; color: #6c757d; font-size: 0.85rem; margin-left: 6px; }
+    .auto-text { background: var(--light-mint); border-radius: 10px; padding: 8px 10px; font-size: 0.9rem; white-space: pre-wrap; margin-bottom: 8px; }
+    .auto-text::before { content: "ดึงจากการบันทึก"; display: block; font-size: 0.72rem; font-weight: 700; color: var(--primary-green); margin-bottom: 2px; }
+    .isbar-block .form-label { font-size: 0.82rem; font-weight: 700; color: #495057; margin-bottom: 2px; }
+    .isbar-preview { background: #f8f9fa; border: 1px dashed #b7dccd; border-radius: 12px; padding: 12px; font-size: 0.88rem; white-space: pre-wrap; max-height: 360px; overflow: auto; }
+    .report-list { list-style: none; padding: 0; margin: 10px 0 0; }
+    .report-list li { background: var(--light-mint); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; font-size: 0.9rem; }
+    @media (max-width: 576px) { .isbar-block { gap: 8px; padding: 10px; } .isbar-letter { width: 30px; height: 30px; border-radius: 9px; font-size: 1.05rem; } .isbar-title span { display: block; margin-left: 0; } }
+
+    /* สรุปผล: บันทึกหลัง CPR */
+    .post-head { font-weight: 800; color: var(--primary-green); border-top: 2px dashed #b7dccd; padding-top: 14px; font-size: 1.05rem; }
+    .post-box { background: #fff; border: 1.5px solid #e3efe9; border-radius: 12px; padding: 12px; height: 100%; }
+    .post-box > strong, .post-box > label.fw-bold { color: #212529; }
+    .oc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 9px 0; border-bottom: 1px solid #eef3f1; }
+    .oc-row:last-child { border-bottom: 0; }
+    .oc-row .form-check { min-width: 170px; margin: 0; }
+    .oc-row .form-check-label { font-weight: 600; }
+    .oc-row .form-check-input { width: 1.3em; height: 1.3em; }
+    .oc-row .form-check-input:checked { background-color: var(--primary-green); border-color: var(--primary-green); }
+    .oc-extra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .oc-extra .form-control, .oc-extra .form-select { width: auto; }
+    .gcs-sel { width: 76px !important; }
+    .drug-total th, .drug-total td { background: transparent; font-size: 0.92rem; }
+    .drug-total td:first-child { font-weight: 700; }
+
+    /* กล่องติ๊กในสรุปผล */
+    .pf-checks { display: grid; grid-template-columns: 1fr; gap: 4px; }
+    .pf-checks.pf-units { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+    .pf-checks .form-check { margin: 0; padding-top: 4px; padding-bottom: 4px; }
+    .pf-checks .form-check-input, .audit-yn .form-check-input { width: 1.35em; height: 1.35em; margin-top: 0.1em; cursor: pointer; }
+    .pf-checks .form-check-input:checked { background-color: var(--primary-green); border-color: var(--primary-green); }
+    .pf-checks .form-check-label { font-weight: 600; cursor: pointer; }
+
+    /* แท็บในหน้าต่างสรุป */
+    .foot-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .modal-tabs { padding: 8px 12px 0; background: #fff; border-bottom: 1px solid #dee2e6; }
+    .modal-tabs .nav-tabs { border-bottom: 0; flex-wrap: nowrap; }
+    .modal-tabs .nav-link { font-weight: 700; color: #6c757d; white-space: nowrap; font-size: 0.95rem; padding: 8px 12px; }
+    .modal-tabs .nav-link.active { color: var(--primary-green); border-top: 3px solid var(--bold-mint); }
+
+    /* แบบประเมินการช่วยฟื้นคืนชีพ */
+    .audit-score { background: var(--light-mint); border-radius: 12px; padding: 10px 14px; font-weight: 700; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+    .audit-sec { background: #fff; border: 1.5px solid #e3efe9; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    .audit-sec h6 { font-weight: 800; color: var(--primary-green); display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .audit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 9px 6px; border-bottom: 1px solid #eef3f1; border-radius: 8px; }
+    .audit-row:last-child { border-bottom: 0; }
+    .audit-row.is-no { background: #fff4f4; }
+    .audit-q { flex: 1 1 240px; min-width: 0; font-weight: 600; }
+    .audit-q .num { color: var(--primary-green); margin-right: 4px; }
+    .audit-q small { display: block; font-weight: 400; color: #0f6b44; }
+    .audit-yn { display: flex; gap: 16px; flex-shrink: 0; }
+    .audit-yn .form-check { margin: 0; }
+    .audit-yn .form-check-label { font-weight: 700; cursor: pointer; }
+    .audit-yn .yes:checked { background-color: var(--primary-green); border-color: var(--primary-green); }
+    .audit-yn .no:checked { background-color: #dc3545; border-color: #dc3545; }
+    .audit-reason { flex-basis: 100%; }
+
+    .action-btn { border-radius: 12px; font-weight: 600; padding: 15px 10px; height: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .action-btn i { margin-bottom: 8px; }
+    .action-btn small { font-weight: 400; font-size: 0.75rem; opacity: 0.8; }
+    .action-btn:disabled { opacity: 0.45; }
+    .due-pulse { animation: duePulse 1s ease-in-out infinite; }
+    @keyframes duePulse { 50% { box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.45); } }
+    .btn-suggest { box-shadow: 0 0 0 4px rgba(32, 201, 151, 0.55) !important; }
+
+    .table-container { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid var(--bold-mint); }
+    .cpr-table th, .cpr-table td { white-space: nowrap; }
+    .cpr-table td.acts { white-space: normal; min-width: 220px; }
+    .cpr-table .form-check-input { width: 1.45em; height: 1.45em; margin: 0; cursor: pointer; }
+    .t-plus { display: block; font-size: 0.78rem; color: #6c757d; font-weight: 400; font-variant-numeric: tabular-nums; }
+    .empty-row td { color: #6c757d; text-align: center; padding: 24px !important; white-space: normal !important; }
+
+    .summary-box { background: #e9ecef; border-radius: 10px; padding: 15px; height: 100%; }
+    .summary-box small { display: block; color: #6c757d; }
+
+    .choice-label { font-weight: 700; font-size: 0.9rem; color: #495057; margin-bottom: 6px; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .drug-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    @media (min-width: 576px) { .drug-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .drug-btn { text-align: left; border-radius: 12px; padding: 8px 10px; line-height: 1.25; font-weight: 700; }
+    .drug-btn small { display: block; font-weight: 400; opacity: 0.75; font-size: 0.75rem; }
+    .med-preview { background: var(--light-mint); border-radius: 12px; padding: 10px 12px; font-weight: 700; }
+
+    .check-timer { font-size: 3.4rem; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; color: #fd7e14; }
+    .check-timer.over { color: #dc3545; }
+    .check-hint { background: var(--light-mint); border-radius: 12px; padding: 10px 12px; font-size: 0.95rem; }
+
+    .voice-banner { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2100; background: var(--primary-green); color: white; padding: 10px 18px; border-radius: 30px; font-weight: 700; box-shadow: 0 6px 18px rgba(25, 135, 84, 0.35); max-width: 92vw; text-align: center; display: none; }
+    .voice-banner i { margin-right: 6px; }
+
+    @media (max-width: 768px) {
+      .main-timer-display { font-size: 4.5rem; }
+      .btn-start-cpr { font-size: 1.8rem; padding: 10px 20px; }
+      .sub-timer-display { font-size: 2.5rem; }
+      .action-btn { font-size: 0.85rem; padding: 10px 5px; }
+      .header-bar h3 { font-size: 1.2rem; }
+      .header-bar .fs-4 { font-size: 1.1rem !important; }
+      .section-card > summary { padding: 14px 16px; }
+      .section-body { padding: 0 12px 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .due-pulse { animation: none; box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.6); }
+      .beat-dot, .progress.mint .progress-bar, .sec-chev { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="voiceBanner" class="voice-banner" role="status" aria-live="assertive"><i class="fa-solid fa-volume-high"></i><span id="voiceText"></span></div>
+
+  <div class="header-bar d-flex justify-content-between align-items-center mb-4">
+    <div style="min-width:0">
+      <h3 class="mb-0 fw-bold"><i class="fa-solid fa-heart-pulse"></i> Smart CPR Dashboard</h3>
+      <span id="syncBadge" class="sync-badge"><i class="fa-solid fa-cloud"></i> <span>กำลังตรวจสอบ</span></span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <div class="text-end">
+        <div id="currentDate" class="fw-bold fs-6"></div>
+        <div id="currentTime" class="fw-bold fs-4 text-light"></div>
+      </div>
+      <button class="btn btn-light header-icon" data-bs-toggle="modal" data-bs-target="#settingsModal" aria-label="ตั้งค่า"><i class="fa-solid fa-gear"></i></button>
+    </div>
+  </div>
+
+  <div class="container-fluid pb-5">
+
+    <div class="row justify-content-center mb-4">
+      <div class="col-12 col-md-10 col-lg-8">
+        <div class="main-timer-card">
+          <h4 class="text-success fw-bold" id="totalLabel">เวลา CPR ทั้งหมด</h4>
+          <div id="totalTimeDisplay" class="main-timer-display">00:00</div>
+          <div id="caseLine" class="case-line">พร้อมเริ่ม</div>
+          <button id="btnStartCpr" class="btn btn-success btn-start-cpr w-100 text-white mt-3" onclick="mainButton()">
+            <i class="fa-solid fa-play"></i> START CPR
+          </button>
+          <div class="metro-strip mt-3">
+            <button id="beatDot" class="beat-dot" type="button" onclick="toggleMetroSound()" aria-label="เปิดหรือปิดเสียงเคาะจังหวะ"><span id="beatNum"><i class="fa-solid fa-heart"></i></span></button>
+            <div class="metro-controls">
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <div class="btn-group btn-group-sm" role="group" aria-label="อัตราการกด" id="bpmGroup">
+                  <button type="button" class="btn btn-outline-success fw-bold" data-bpm="100">100</button>
+                  <button type="button" class="btn btn-outline-success fw-bold" data-bpm="110">110</button>
+                  <button type="button" class="btn btn-outline-success fw-bold" data-bpm="120">120</button>
+                </div>
+                <span class="small text-muted">ครั้ง/นาที</span>
+              </div>
+              <div class="btn-group btn-group-sm" role="group" aria-label="รูปแบบการช่วยหายใจ" id="modeGroup">
+                <button type="button" class="btn btn-outline-success fw-bold" data-mode="302">30:2</button>
+                <button type="button" class="btn btn-outline-success fw-bold" data-mode="cont">กดต่อเนื่อง (มีท่อ)</button>
+              </div>
+              <div id="metroNote" class="metro-note"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 justify-content-center mb-4">
+      <div class="col-12 col-md-6">
+        <div class="sub-timer-card">
+          <h4 class="text-success fw-bold m-0 d-flex align-items-center justify-content-center">
+            <i class="fa-solid fa-stopwatch me-2"></i> CPR Cycle <span id="cycleCount" class="badge bg-success ms-3 cycle-badge">1</span>
+          </h4>
+          <div>
+            <div id="cycleTimeDisplay" class="sub-timer-display">02:00</div>
+            <div class="progress mint" role="progressbar" aria-label="ความคืบหน้ารอบ"><div id="cycleBar" class="progress-bar" style="width:0%"></div></div>
+            <div id="cycleHint" class="timer-hint">ประเมินชีพจรทุก 2 นาที</div>
+          </div>
+          <button id="btnPauseCycle" class="btn btn-outline-success w-100 fw-bold btn-lg" onclick="openCheck(false)" disabled>
+            <i class="fa-solid fa-pause"></i> พัก / ประเมิน
+          </button>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="sub-timer-card">
+          <h4 class="text-success fw-bold m-0 d-flex align-items-center justify-content-center">
+            <i class="fa-solid fa-syringe me-2"></i> Adrenaline <span id="adrCount" class="badge bg-success ms-3 cycle-badge">0</span>
+          </h4>
+          <div>
+            <div id="adrTimeDisplay" class="sub-timer-display text-secondary">03:00</div>
+            <div class="progress mint" role="progressbar" aria-label="เวลาหลังให้ยา"><div id="adrBar" class="progress-bar" style="width:0%"></div></div>
+            <div id="adrHint" class="timer-hint">ให้ซ้ำทุก 3–5 นาที</div>
+          </div>
+          <button id="btnPlayAdr" class="btn btn-success text-white w-100 fw-bold btn-lg" onclick="giveAdrenaline()" disabled>
+            <i class="fa-solid fa-syringe"></i> ให้ Adrenaline 1 mg
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ประเมินครั้งแรก -->
+    <details class="section-card" id="secAssess" open>
+      <summary>
+        <h5><i class="fa-solid fa-clipboard-check"></i> ประเมินครั้งแรก</h5>
+        <span id="assessCount" class="badge bg-success">0/14</span>
+        <i class="fa-solid fa-chevron-down sec-chev" aria-hidden="true"></i>
+        <span id="assessSub" class="sec-sub"></span>
+      </summary>
+      <div class="section-body">
+        <div class="small text-muted mb-2">ติ๊กอาการที่พบ ระบบจะให้ใส่เวลาทุกหัวข้อ แตะเวลาสีเขียวเพื่อแก้ไข</div>
+        <div class="row g-2" id="assessList"></div>
+      </div>
+    </details>
+
+    <!-- กระบวนการ -->
+    <details class="section-card" id="secProcess" open>
+      <summary>
+        <h5><i class="fa-solid fa-list-check"></i> กระบวนการ</h5>
+        <span id="procCount" class="badge bg-success">0/7</span>
+        <i class="fa-solid fa-chevron-down sec-chev" aria-hidden="true"></i>
+        <span id="procSub" class="sec-sub"></span>
+      </summary>
+      <div class="section-body">
+        <div class="row g-2" id="procList"></div>
+      </div>
+    </details>
+
+    <!-- ISBAR -->
+    <details class="section-card" id="secIsbar">
+      <summary>
+        <h5><i class="fa-solid fa-comments"></i> ISBAR รายงานแพทย์ / ส่งเวร</h5>
+        <span id="isbarBadge" class="badge bg-secondary">ยังไม่ได้รายงาน</span>
+        <i class="fa-solid fa-chevron-down sec-chev" aria-hidden="true"></i>
+        <span id="isbarSub" class="sec-sub"></span>
+      </summary>
+      <div class="section-body">
+        <div class="small text-muted mb-3">กรอบสีเขียวดึงจากข้อมูลที่บันทึกไว้ให้อัตโนมัติ กรอกเพิ่มเฉพาะช่องที่ระบบไม่รู้ แล้วกดคัดลอกหรือบันทึกการรายงาน</div>
+        <div class="d-grid gap-3">
+          <div class="isbar-block">
+            <div class="isbar-letter">I</div>
+            <div class="isbar-body">
+              <div class="isbar-title">Identify<span>ระบุตัวผู้ป่วย</span></div>
+              <div class="row g-2">
+                <div class="col-4"><label class="form-label" for="ibAge">อายุ (ปี)</label><input id="ibAge" class="form-control" inputmode="numeric" autocomplete="off"></div>
+                <div class="col-4"><label class="form-label" for="ibSex">เพศ</label><select id="ibSex" class="form-select"><option value="">-</option><option value="ชาย">ชาย</option><option value="หญิง">หญิง</option></select></div>
+                <div class="col-4"><label class="form-label" for="ibHn">HN</label><input id="ibHn" class="form-control" inputmode="numeric" autocomplete="off"></div>
+              </div>
+            </div>
+          </div>
+          <div class="isbar-block">
+            <div class="isbar-letter">S</div>
+            <div class="isbar-body">
+              <div class="isbar-title">Situation<span>อาการจากการประเมินครั้งแรกและสถานการณ์ตอนนี้</span></div>
+              <div id="ibSAuto" class="auto-text"></div>
+              <label class="form-label" for="ibS">ข้อมูลเพิ่มเติม</label><textarea id="ibS" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="isbar-block">
+            <div class="isbar-letter">B</div>
+            <div class="isbar-body">
+              <div class="isbar-title">Background<span>ข้อมูลพื้นฐานของผู้ป่วย</span></div>
+              <div class="row g-2">
+                <div class="col-12 col-md-6"><label class="form-label" for="ibHx">โรคประจำตัว / ประวัติสำคัญ</label><input id="ibHx" class="form-control" autocomplete="off"></div>
+                <div class="col-12 col-md-6"><label class="form-label" for="ibPre">เหตุการณ์ก่อนหัวใจหยุดเต้น</label><input id="ibPre" class="form-control" autocomplete="off" placeholder="เช่น เกิดเหตุขณะฟอกเลือดชั่วโมงที่ 2"></div>
+              </div>
+            </div>
+          </div>
+          <div class="isbar-block">
+            <div class="isbar-letter">A</div>
+            <div class="isbar-body">
+              <div class="isbar-title">Assessment<span>ผลการประเมินและการรักษาที่ให้แล้ว</span></div>
+              <div id="ibAAuto" class="auto-text"></div>
+              <label class="form-label" for="ibA">การประเมินเพิ่มเติมของพยาบาล</label><textarea id="ibA" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="choice-label mt-3">ข้อความ ISBAR</div>
+        <div id="ibPreview" class="isbar-preview"></div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button type="button" class="btn btn-success fw-bold" id="ibCopy"><i class="fa-solid fa-copy"></i> คัดลอก ISBAR</button>
+          <button type="button" class="btn btn-outline-success fw-bold" id="ibRecord"><i class="fa-solid fa-clipboard-check"></i> บันทึกการรายงาน</button>
+        </div>
+        <ul class="report-list" id="ibReports"></ul>
+      </div>
+    </details>
+
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-2">
+      <h5 class="fw-bold text-success m-0"><i class="fa-solid fa-briefcase-medical"></i> บันทึกเหตุการณ์ทางคลินิก</h5>
+      <div class="d-flex gap-2">
+        <button class="btn btn-dark btn-sm fw-bold shadow-sm" onclick="showSummaryModal('sum')"><i class="fa-solid fa-chart-pie"></i> สรุปผล CPR</button>
+        <button class="btn btn-outline-dark btn-sm fw-bold shadow-sm" onclick="showSummaryModal('audit')"><i class="fa-solid fa-clipboard-list"></i> แบบประเมิน CPR</button>
+      </div>
+    </div>
+
+    <div class="row g-2 mb-3" id="actionGrid">
+      <div class="col-4 col-lg"><button class="btn btn-outline-success w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#rhythmModal"><i class="fa-solid fa-heart-circle-bolt fa-2x"></i>Rhythm</button></div>
+      <div class="col-4 col-lg"><button class="btn btn-outline-danger w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#shockModal"><i class="fa-solid fa-bolt fa-2x"></i>Shock<small id="shockSmall">200J</small></button></div>
+      <div class="col-4 col-lg"><button class="btn btn-outline-warning text-dark w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#medsModal"><i class="fa-solid fa-pills fa-2x"></i>Meds</button></div>
+      <div class="col-4 col-lg"><button class="btn btn-outline-info text-dark w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#tubeModal"><i class="fa-solid fa-lungs fa-2x"></i>ET-Tube<small id="tubeSmall">Oral / Nasal</small></button></div>
+      <div class="col-4 col-lg"><button class="btn btn-outline-primary w-100 action-btn live-btn" onclick="promptDTX()"><i class="fa-solid fa-droplet fa-2x"></i>DTX</button></div>
+      <div class="col-4 col-lg"><button class="btn btn-outline-secondary w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#vitalsModal"><i class="fa-solid fa-stethoscope fa-2x"></i>V/S</button></div>
+      <div class="col-4 col-lg"><button class="btn btn-outline-secondary w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#causesModal"><i class="fa-solid fa-magnifying-glass-plus fa-2x"></i>5H 5T</button></div>
+      <div class="col-4 col-lg"><button class="btn btn-outline-secondary w-100 action-btn live-btn" onclick="promptCustom()"><i class="fa-solid fa-plus fa-2x"></i>อื่นๆ</button></div>
+      <div class="col-4 col-lg"><button id="btnRosc" class="btn btn-outline-primary w-100 action-btn live-btn" onclick="roscButton()"><i class="fa-solid fa-heart fa-2x"></i><span id="roscLabel">ROSC</span></button></div>
+    </div>
+
+    <h5 class="fw-bold text-success mt-4 mb-2"><i class="fa-solid fa-user-group"></i> ทีมแพทย์และประสานงาน</h5>
+    <div class="row g-2 mb-4">
+      <div class="col-6 col-md"><button class="btn btn-outline-dark w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#doctorModal"><i class="fa-solid fa-user-doctor fa-2x"></i>แพทย์มาถึง</button></div>
+      <div class="col-6 col-md"><button class="btn btn-outline-dark w-100 action-btn live-btn" data-bs-toggle="modal" data-bs-target="#anesModal"><i class="fa-solid fa-mask-ventilator fa-2x"></i>วิสัญญีมาถึง</button></div>
+      <div class="col-6 col-md"><button class="btn btn-outline-dark w-100 action-btn live-btn" onclick="recordRelativeCall()"><i class="fa-solid fa-phone fa-2x"></i>โทรแจ้งญาติ</button></div>
+      <div class="col-6 col-md"><button class="btn btn-outline-dark w-100 action-btn" data-bs-toggle="modal" data-bs-target="#patientModal"><i class="fa-solid fa-id-card fa-2x"></i>ข้อมูลผู้ป่วย/ทีม</button></div>
+      <div class="col-12 col-md"><button class="btn btn-outline-success w-100 action-btn" onclick="openIsbar()"><i class="fa-solid fa-comments fa-2x"></i>รายงาน ISBAR / ส่งเวร</button></div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-end mb-2">
+      <h5 class="fw-bold text-success m-0"><i class="fa-solid fa-table-list"></i> ตาราง CPR Record</h5>
+      <button class="btn btn-outline-success btn-sm fw-bold" onclick="openRowModal(null)"><i class="fa-solid fa-plus"></i> เพิ่มแถว</button>
+    </div>
+    <div class="table-container table-responsive p-2">
+      <table class="table table-hover align-middle mb-0 cpr-table">
+        <thead class="table-light">
+          <tr>
+            <th class="text-success">เวลา</th>
+            <th class="text-success text-center">CPR</th>
+            <th class="text-success">P (BPM)</th>
+            <th class="text-success">RR (BPM)</th>
+            <th class="text-success">ECG</th>
+            <th class="text-success">BP (mmHg)</th>
+            <th class="text-success">กิจกรรม / ยา</th>
+            <th class="text-center text-success">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody"></tbody>
+      </table>
+    </div>
+    <div class="small text-muted mt-2">เวลาเป็นเวลาจริงที่บันทึก แตะ <i class="fa-solid fa-pen"></i> เพื่อแก้ไขเวลาและข้อมูลในแถวภายหลัง ติ๊กช่อง CPR ได้โดยตรง</div>
+
+  </div>
+
+  <!-- ประเมินครั้งแรก: ใส่เวลา -->
+  <div class="modal fade" id="assessModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white"><h5 class="modal-title" id="asTitle">ประเมินครั้งแรก</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div>
+        <div class="modal-body">
+          <label class="choice-label" for="asTime">เวลาที่พบ</label>
+          <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control" id="asTime"><button class="btn btn-outline-success now-btn" type="button" data-for="asTime">ตอนนี้</button></div>
+          <div id="asRateWrap" class="mb-3"><label class="choice-label" for="asRate">ชีพจร (ครั้ง/นาที)</label><input type="number" inputmode="numeric" class="form-control" id="asRate" placeholder="เช่น 130"></div>
+          <div id="asBpWrap" class="row g-2 mb-3">
+            <div class="col-6"><label class="choice-label" for="asSbp">SBP (mmHg)</label><input type="number" inputmode="numeric" class="form-control" id="asSbp" placeholder="เช่น 70"></div>
+            <div class="col-6"><label class="choice-label" for="asDbp">DBP (mmHg)</label><input type="number" inputmode="numeric" class="form-control" id="asDbp" placeholder="เช่น 40"></div>
+          </div>
+          <div id="asRrWrap" class="mb-3"><label class="choice-label" for="asRr">อัตราการหายใจ (ครั้ง/นาที)</label><input type="number" inputmode="numeric" class="form-control" id="asRr" placeholder="เช่น 32"></div>
+          <div id="asTextWrap" class="mb-3"><label class="choice-label" for="asText">ระบุอาการอื่นๆ</label><input type="text" class="form-control" id="asText" placeholder="ระบุ..."></div>
+          <p class="text-danger small mb-0" id="asErr" hidden></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="asRemove">ยกเลิกการติ๊ก</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+          <button type="button" class="btn btn-success fw-bold" id="asSave"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- กระบวนการ: ใส่เวลา -->
+  <div class="modal fade" id="procModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white"><h5 class="modal-title" id="pcTitle">กระบวนการ</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div>
+        <div class="modal-body">
+          <div id="pcChoiceWrap" class="mb-3">
+            <div class="choice-label">ผลการ Phone</div>
+            <div class="btn-group w-100" id="pcChoice">
+              <button type="button" class="btn btn-outline-success fw-bold py-2" data-choice="yes"><i class="fa-solid fa-phone"></i> Phone</button>
+              <button type="button" class="btn btn-outline-secondary fw-bold py-2" data-choice="no"><i class="fa-solid fa-phone-slash"></i> ไม่ได้ Phone</button>
+            </div>
+          </div>
+          <div id="pcTimeWrap">
+            <label class="choice-label" for="pcTime">เวลา</label>
+            <div class="input-group mb-2"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control" id="pcTime"><button class="btn btn-outline-success now-btn" type="button" data-for="pcTime">ตอนนี้</button></div>
+          </div>
+          <div class="small text-muted" id="pcHint"></div>
+          <p class="text-danger small mb-0 mt-2" id="pcErr" hidden></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="pcRemove">ลบรายการ</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+          <button type="button" class="btn btn-success fw-bold" id="pcSave"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ประเมินชีพจร/จังหวะ ทุก 2 นาที -->
+  <div class="modal fade" id="checkModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fw-bold"><i class="fa-solid fa-hand-holding-heart"></i> ประเมินชีพจรและ Rhythm</h5>
+          <div class="ms-auto text-end"><span id="checkTimer" class="check-timer">0</span><span class="fw-bold"> วินาที</span></div>
+        </div>
+        <div class="modal-body">
+          <div class="progress mint mb-1"><div id="checkBar" class="progress-bar bg-warning" style="width:0%"></div></div>
+          <div class="small text-muted mb-3">หยุดกดหน้าอกไม่ควรเกิน 10 วินาที</div>
+          <div class="choice-label">คลำชีพจร</div>
+          <div class="d-flex gap-2 mb-3" id="pulseChoice">
+            <button type="button" class="btn btn-outline-danger flex-fill fw-bold py-2" data-pulse="no">ไม่มีชีพจร</button>
+            <button type="button" class="btn btn-outline-success flex-fill fw-bold py-2" data-pulse="yes">มีชีพจร</button>
+          </div>
+          <div class="choice-label">EKG Rhythm</div>
+          <div class="d-flex flex-wrap gap-2 mb-3" id="rhythmChoice">
+            <button type="button" class="btn btn-outline-danger fw-bold" data-rh="VF">VF</button>
+            <button type="button" class="btn btn-outline-danger fw-bold" data-rh="pVT">pVT</button>
+            <button type="button" class="btn btn-outline-secondary fw-bold" data-rh="PEA">PEA</button>
+            <button type="button" class="btn btn-outline-secondary fw-bold" data-rh="Asystole">Asystole</button>
+            <button type="button" class="btn btn-outline-success fw-bold" data-rh="Sinus/Organized">Sinus/Organized</button>
+          </div>
+          <div id="checkHint" class="check-hint mb-3"></div>
+          <div class="choice-label">พลังงานช็อก (J)</div>
+          <div class="d-flex flex-wrap gap-2 mb-3" id="checkJ"></div>
+          <div class="d-grid gap-2">
+            <button type="button" class="btn btn-success btn-lg fw-bold" id="cResume" onclick="commitCheck('cpr')"><i class="fa-solid fa-play"></i> ไม่มีชีพจร: CPR ต่อ</button>
+            <div class="row g-2">
+              <div class="col-6"><button type="button" class="btn btn-danger w-100 fw-bold py-2" id="cShock" onclick="commitCheck('shock')"><i class="fa-solid fa-bolt"></i> Shock แล้ว CPR ต่อ</button></div>
+              <div class="col-6"><button type="button" class="btn btn-primary w-100 fw-bold py-2" id="cRosc" onclick="commitCheck('rosc')"><i class="fa-solid fa-heart"></i> มีชีพจร (ROSC)</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="rhythmModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-success text-white"><h5 class="modal-title">EKG Rhythm</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body text-center">
+    <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control time-now" id="rhTime" aria-label="เวลา"><button class="btn btn-outline-success now-btn" type="button" data-for="rhTime">ตอนนี้</button></div>
+    <div class="d-flex flex-wrap justify-content-center gap-2 mb-3"><button class="btn btn-outline-success" onclick="saveRhythm('pVT')">pVT</button><button class="btn btn-outline-success" onclick="saveRhythm('VF')">VF</button><button class="btn btn-outline-success" onclick="saveRhythm('VT')">VT</button><button class="btn btn-outline-success" onclick="saveRhythm('PEA')">PEA</button><button class="btn btn-outline-success" onclick="saveRhythm('Asystole')">Asystole</button><button class="btn btn-outline-success" onclick="saveRhythm('Sinus/Organized')">Sinus/Organized</button></div>
+    <input type="text" id="customRhythm" class="form-control mb-2" placeholder="เพิ่ม EKG อื่นๆ..."><button class="btn btn-success w-100" onclick="saveRhythm(document.getElementById('customRhythm').value.trim())">บันทึก</button>
+  </div></div></div></div>
+
+  <div class="modal fade" id="shockModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-danger text-white"><h5 class="modal-title">Defibrillation (Shock)</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body text-center">
+    <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control time-now" id="shTime" aria-label="เวลา"><button class="btn btn-outline-danger now-btn" type="button" data-for="shTime">ตอนนี้</button></div>
+    <div class="d-flex flex-wrap justify-content-center gap-2 mb-3"><button class="btn btn-outline-danger" onclick="saveShock(120)">120 Joules</button><button class="btn btn-outline-danger" onclick="saveShock(150)">150 Joules</button><button class="btn btn-outline-danger" onclick="saveShock(200)">200 Joules</button><button class="btn btn-outline-danger" onclick="saveShock(360)">360 Joules</button></div>
+    <input type="number" inputmode="numeric" id="customShock" class="form-control mb-2" placeholder="จูลอื่นๆ..."><button class="btn btn-danger w-100" onclick="saveShock(parseInt(document.getElementById('customShock').value, 10))">บันทึก</button>
+    <div class="small text-muted mt-2" id="shockNote">บันทึกระหว่าง CPR ระบบจะเริ่มนับรอบ 2 นาทีใหม่</div>
+  </div></div></div></div>
+
+  <!-- ยา -->
+  <div class="modal fade" id="medsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark"><h5 class="modal-title">Medications (ยา)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button></div>
+        <div class="modal-body">
+          <div class="choice-label">1. เลือกยา</div>
+          <div class="drug-grid mb-3" id="drugGrid"></div>
+          <div id="drugDetail" hidden>
+            <div id="drugNameWrap" class="mb-3" hidden><label class="choice-label" for="drugNameCustom">ชื่อยา</label><input type="text" id="drugNameCustom" class="form-control" placeholder="ระบุชื่อยา"></div>
+            <div class="choice-label">2. ขนาดยา <span class="fw-normal text-muted">(เลือก หรือพิมพ์เอง)</span></div>
+            <div class="chip-row mb-2" id="doseChips"></div>
+            <div class="input-group mb-2">
+              <input type="text" id="doseCustom" class="form-control" inputmode="decimal" placeholder="พิมพ์ขนาดเอง เช่น 2" aria-label="ขนาดยาที่พิมพ์เอง">
+              <select id="doseUnit" class="form-select" style="max-width:130px" aria-label="หน่วย">
+                <option value="mg">mg</option><option value="g">g</option><option value="mcg">mcg</option><option value="ml">ml</option><option value="amp">amp</option><option value="mEq">mEq</option><option value="unit">unit</option><option value="ml/hr">ml/hr</option>
+              </select>
+            </div>
+            <div class="small text-success fw-bold mb-3" id="drugRef"></div>
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-sm-6">
+                <div class="choice-label">3. ทางที่ให้</div>
+                <div class="btn-group w-100" id="routeGroup">
+                  <button type="button" class="btn btn-outline-dark fw-bold" data-route="IV">IV</button>
+                  <button type="button" class="btn btn-outline-dark fw-bold" data-route="IO">IO</button>
+                  <button type="button" class="btn btn-outline-dark fw-bold" data-route="ETT">ETT</button>
+                </div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <label class="choice-label" for="medTime">4. เวลาที่ให้</label>
+                <div class="input-group"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control" id="medTime"><button class="btn btn-outline-dark now-btn" type="button" data-for="medTime">ตอนนี้</button></div>
+              </div>
+            </div>
+            <div class="med-preview" id="medPreview"></div>
+            <p class="text-danger small mb-0 mt-2" id="medErr" hidden></p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+          <button type="button" class="btn btn-warning text-dark fw-bold" id="medSave" disabled><i class="fa-solid fa-floppy-disk"></i> บันทึกยา</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ET-tube -->
+  <div class="modal fade" id="tubeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-info text-dark"><h5 class="modal-title"><i class="fa-solid fa-lungs"></i> ใส่ ET-Tube</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button></div>
+        <div class="modal-body">
+          <div class="choice-label">ชนิด</div>
+          <div class="btn-group w-100 mb-3" id="tubeRoute">
+            <button type="button" class="btn btn-outline-info text-dark fw-bold py-2" data-route="Oral">Oral</button>
+            <button type="button" class="btn btn-outline-info text-dark fw-bold py-2" data-route="Nasal">Nasal</button>
+          </div>
+          <div class="choice-label">ขนาด (No.)</div>
+          <div class="chip-row mb-2" id="tubeSize"></div>
+          <input type="number" inputmode="decimal" step="0.5" id="tubeSizeCustom" class="form-control mb-3" placeholder="พิมพ์ขนาดเอง เช่น 5.5" aria-label="ขนาดที่พิมพ์เอง">
+          <div class="choice-label">ความลึก (cm)</div>
+          <div class="chip-row mb-2" id="tubeDepth"></div>
+          <input type="number" inputmode="decimal" step="0.5" id="tubeDepthCustom" class="form-control mb-3" placeholder="พิมพ์ความลึกเอง เช่น 24" aria-label="ความลึกที่พิมพ์เอง">
+          <label class="choice-label" for="tubeTime">เวลาที่ใส่</label>
+          <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control" id="tubeTime"><button class="btn btn-outline-info text-dark now-btn" type="button" data-for="tubeTime">ตอนนี้</button></div>
+          <div class="choice-label">ผู้ใส่</div>
+          <div class="btn-group w-100 mb-2" id="tubeBy">
+            <button type="button" class="btn btn-outline-dark fw-bold" data-by="doc"><i class="fa-solid fa-user-doctor"></i> แพทย์</button>
+            <button type="button" class="btn btn-outline-dark fw-bold" data-by="anes"><i class="fa-solid fa-mask-ventilator"></i> วิสัญญี</button>
+          </div>
+          <input type="text" id="tubeName" class="form-control mb-3" placeholder="ระบุชื่อผู้ใส่" aria-label="ชื่อผู้ใส่">
+          <div class="med-preview" id="tubePreview"></div>
+          <div class="small text-muted mt-2">บันทึกแล้วระบบจะเปลี่ยนเป็นกดหน้าอกต่อเนื่อง ช่วยหายใจทุก 6 วินาที</div>
+          <p class="text-danger small mb-0 mt-2" id="tubeErr" hidden></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="tubeRemove">ลบรายการ</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+          <button type="button" class="btn btn-info fw-bold" id="tubeSave"><i class="fa-solid fa-floppy-disk"></i> บันทึก Tube</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V/S -->
+  <div class="modal fade" id="vitalsModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-secondary text-white"><h5 class="modal-title"><i class="fa-solid fa-stethoscope"></i> บันทึก V/S</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body">
+    <label class="choice-label" for="vsTime">เวลา</label>
+    <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control time-now" id="vsTime"><button class="btn btn-outline-secondary now-btn" type="button" data-for="vsTime">ตอนนี้</button></div>
+    <div class="row g-2">
+      <div class="col-6"><label class="form-label fw-bold small" for="vsP">P (ครั้ง/นาที)</label><input id="vsP" type="number" inputmode="numeric" class="form-control"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="vsRr">RR (ครั้ง/นาที)</label><input id="vsRr" type="number" inputmode="numeric" class="form-control"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="vsSbp">SBP (mmHg)</label><input id="vsSbp" type="number" inputmode="numeric" class="form-control"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="vsDbp">DBP (mmHg)</label><input id="vsDbp" type="number" inputmode="numeric" class="form-control"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="vsSpo2">SpO2 (%)</label><input id="vsSpo2" type="number" inputmode="numeric" class="form-control"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="vsEt">EtCO2 (mmHg)</label><input id="vsEt" type="number" inputmode="numeric" class="form-control"></div>
+    </div>
+    <div class="small text-muted mt-2">ระหว่างกดหน้าอก EtCO2 ต่ำกว่า 10 mmHg ควรทบทวนคุณภาพการกด ค่าที่สูงขึ้นทันทีอาจบ่งชี้การกลับมามีชีพจร</div>
+    <button class="btn btn-secondary w-100 fw-bold mt-3" onclick="saveVitals()"><i class="fa-solid fa-floppy-disk"></i> บันทึก V/S</button>
+  </div></div></div></div>
+
+  <!-- แก้ไข / เพิ่มแถว -->
+  <div class="modal fade" id="rowModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white"><h5 class="modal-title" id="rwTitle">แก้ไขแถว</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div>
+        <div class="modal-body">
+          <div class="row g-2 align-items-end mb-2">
+            <div class="col-7">
+              <label class="choice-label" for="rwTime">เวลา</label>
+              <div class="input-group"><input type="time" class="form-control" id="rwTime"><button class="btn btn-outline-success now-btn" type="button" data-for="rwTime">ตอนนี้</button></div>
+            </div>
+            <div class="col-5">
+              <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="rwCpr"><label class="form-check-label fw-bold" for="rwCpr">CPR</label></div>
+            </div>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label fw-bold small" for="rwP">P (BPM)</label><input id="rwP" class="form-control" inputmode="numeric"></div>
+            <div class="col-6"><label class="form-label fw-bold small" for="rwRr">RR (BPM)</label><input id="rwRr" class="form-control" inputmode="numeric"></div>
+            <div class="col-12"><label class="form-label fw-bold small" for="rwEcg">ECG</label><input id="rwEcg" class="form-control" list="ecgList" autocomplete="off"></div>
+            <div class="col-6"><label class="form-label fw-bold small" for="rwSbp">SBP (mmHg)</label><input id="rwSbp" class="form-control" inputmode="numeric"></div>
+            <div class="col-6"><label class="form-label fw-bold small" for="rwDbp">DBP (mmHg)</label><input id="rwDbp" class="form-control" inputmode="numeric"></div>
+          </div>
+          <label class="form-label fw-bold small" for="rwActs">กิจกรรม / ยา (หนึ่งรายการต่อหนึ่งบรรทัด)</label>
+          <textarea id="rwActs" class="form-control" rows="4"></textarea>
+          <datalist id="ecgList"><option value="VF"><option value="pVT"><option value="VT"><option value="PEA"><option value="Asystole"><option value="Sinus/Organized"><option value="Sinus tachycardia"><option value="Sinus bradycardia"><option value="AF"></datalist>
+          <p class="text-danger small mb-0 mt-2" id="rwErr" hidden></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger me-auto" id="rwDel"><i class="fa-solid fa-trash"></i> ลบแถว</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+          <button type="button" class="btn btn-success fw-bold" id="rwSave"><i class="fa-solid fa-floppy-disk"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="causesModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header bg-success text-white"><h5 class="modal-title"><i class="fa-solid fa-magnifying-glass-plus"></i> สาเหตุที่แก้ไขได้ (5H 5T)</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body" id="causesBody"></div><div class="modal-footer"><span class="small text-muted me-auto">แตะเพื่อบันทึกว่าได้พิจารณาสาเหตุนี้</span><button class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button></div></div></div></div>
+
+  <div class="modal fade" id="doctorModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-dark text-white"><h5 class="modal-title"><i class="fa-solid fa-user-doctor"></i> แพทย์มาถึง</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body">
+    <label class="form-label fw-bold" for="docTime">เวลาที่มาถึง</label>
+    <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control time-now" id="docTime"><button class="btn btn-outline-dark now-btn" type="button" data-for="docTime">ตอนนี้</button></div>
+    <label class="form-label fw-bold" for="docDeptSelect">แผนก/ประเภท</label><select id="docDeptSelect" class="form-select mb-2" onchange="checkCustomDept()"><option value="ER">ER</option><option value="Med">Med</option><option value="ศัลยกรรม">ศัลยกรรม</option><option value="ไตเทียม">ไตเทียม (Hemodialysis)</option><option value="Ped">Ped (กุมารเวชกรรม)</option><option value="อื่นๆ">อื่นๆ (ระบุเอง)</option></select><input type="text" id="docDeptCustom" class="form-control mb-3 d-none" placeholder="ระบุแผนก..."><label class="form-label fw-bold" for="docName">ชื่อแพทย์</label><input type="text" id="docName" class="form-control mb-3" placeholder="นพ./พญ. ..."><button class="btn btn-dark w-100 fw-bold" onclick="saveDoctor()"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลแพทย์</button>
+  </div></div></div></div>
+
+  <div class="modal fade" id="anesModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-secondary text-white"><h5 class="modal-title"><i class="fa-solid fa-mask-ventilator"></i> พยาบาลวิสัญญีมาถึง</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body">
+    <label class="form-label fw-bold" for="anesTime">เวลาที่มาถึง</label>
+    <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control time-now" id="anesTime"><button class="btn btn-outline-secondary now-btn" type="button" data-for="anesTime">ตอนนี้</button></div>
+    <label class="form-label fw-bold" for="anesName">ชื่อพยาบาลวิสัญญี</label><input type="text" id="anesName" class="form-control mb-3" placeholder="ระบุชื่อ..."><button class="btn btn-secondary w-100 fw-bold" onclick="saveAnes()"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลวิสัญญี</button>
+  </div></div></div></div>
+
+  <div class="modal fade" id="patientModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header bg-success text-white"><h5 class="modal-title"><i class="fa-solid fa-id-card"></i> ข้อมูลผู้ป่วยและทีม</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body">
+    <div class="row g-2">
+      <div class="col-6"><label class="form-label fw-bold small" for="ptHn">HN</label><input id="ptHn" class="form-control" inputmode="numeric" autocomplete="off"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="ptWard">หอผู้ป่วย / สถานที่</label><input id="ptWard" class="form-control" autocomplete="off"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="ptLeader">ผู้นำทีม</label><input id="ptLeader" class="form-control" autocomplete="off"></div>
+      <div class="col-6"><label class="form-label fw-bold small" for="ptRecorder">ผู้บันทึก</label><input id="ptRecorder" class="form-control" autocomplete="off"></div>
+    </div>
+    <div class="small text-muted mt-2">กรอกก่อนหรือระหว่าง CPR ก็ได้ ข้อมูลจะอยู่ในข้อความสรุป</div>
+    <button class="btn btn-success w-100 fw-bold mt-3" onclick="savePatient()"><i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล</button>
+  </div></div></div></div>
+
+  <div class="modal fade" id="settingsModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header bg-success text-white"><h5 class="modal-title"><i class="fa-solid fa-gear"></i> ตั้งค่า</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div><div class="modal-body">
+    <label class="form-label fw-bold" for="stBpm">อัตราการกดหน้าอก <span id="stBpmVal" class="text-success">110</span> ครั้ง/นาที</label>
+    <input type="range" class="form-range" id="stBpm" min="100" max="120" step="2">
+    <div class="form-check form-switch my-2"><input class="form-check-input" type="checkbox" id="stMetro"><label class="form-check-label" for="stMetro">เสียงเคาะจังหวะ</label></div>
+    <div class="form-check form-switch my-2"><input class="form-check-input" type="checkbox" id="stBreath"><label class="form-check-label" for="stBreath">เสียงเตือนช่วยหายใจ (30:2 หลังกดครบ 30 ครั้ง / กดต่อเนื่อง ทุก 6 วินาที)</label></div>
+    <label class="form-label fw-bold mt-2" for="stPause">เวลาหยุดช่วยหายใจ 2 ครั้ง (30:2)</label>
+    <select class="form-select mb-2" id="stPause"><option value="3">3 วินาที</option><option value="4">4 วินาที</option><option value="5">5 วินาที</option><option value="6">6 วินาที</option></select>
+    <div class="form-check form-switch my-2"><input class="form-check-input" type="checkbox" id="stVoice"><label class="form-check-label" for="stVoice">เสียงพูดภาษาไทย</label></div>
+    <label class="form-label fw-bold" for="stRate">ความเร็วเสียงพูด <span id="stRateVal" class="text-success">0.65</span></label>
+    <input type="range" class="form-range" id="stRate" min="0.5" max="1.3" step="0.05">
+    <div class="d-flex gap-2 align-items-center flex-wrap mt-1">
+      <button class="btn btn-outline-success btn-sm fw-bold" onclick="testVoice()"><i class="fa-solid fa-volume-high"></i> ทดสอบเสียง</button>
+      <span id="voiceStatus" class="small text-muted"></span>
+    </div>
+    <hr>
+    <div class="fw-bold mb-1"><i class="fa-solid fa-database"></i> การเชื่อมต่อ Google Sheet</div>
+    <div class="small text-muted mb-1" id="connStatus"></div>
+    <div class="small text-danger mb-1" id="connError" hidden></div>
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+      <button class="btn btn-outline-success btn-sm fw-bold" type="button" id="btnTestConn"><i class="fa-solid fa-plug"></i> ทดสอบการเชื่อมต่อ</button>
+      <button class="btn btn-outline-secondary btn-sm fw-bold" type="button" id="btnFlushQ"><i class="fa-solid fa-rotate"></i> ส่งรายการที่ค้าง</button>
+      <a id="sheetLink" class="small fw-bold text-success" target="_blank" rel="noopener" hidden><i class="fa-solid fa-table"></i> เปิด Google Sheet</a>
+    </div>
+    <div class="small fw-bold text-muted" id="connTest"></div>
+    <hr>
+    <div class="small text-muted">ข้อมูลระหว่าง CPR เก็บสำรองในเครื่องนี้ด้วย รีเฟรชหน้าหรือจอดับก็ทำต่อได้ รายการที่ส่งเข้าชีตไม่สำเร็จจะส่งซ้ำอัตโนมัติ</div>
+    <button class="btn btn-outline-danger w-100 fw-bold mt-3" onclick="askNewCase()"><i class="fa-solid fa-rotate"></i> ล้างหน้าจอและเริ่มเคสใหม่</button>
+  </div></div></div></div>
+
+  <div class="modal fade" id="reportModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white"><h5 class="modal-title"><i class="fa-solid fa-clipboard-check"></i> บันทึกการรายงาน ISBAR</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button></div>
+        <div class="modal-body">
+          <div class="choice-label">ประเภท</div>
+          <div class="btn-group w-100 mb-3" id="rpType">
+            <button type="button" class="btn btn-outline-success fw-bold py-2" data-rt="doctor"><i class="fa-solid fa-user-doctor"></i> รายงานแพทย์</button>
+            <button type="button" class="btn btn-outline-success fw-bold py-2" data-rt="handover"><i class="fa-solid fa-people-arrows"></i> ส่งเวร</button>
+          </div>
+          <label class="choice-label" for="rpTo">ผู้รับรายงาน <span class="fw-normal text-muted">(ไม่บังคับ)</span></label>
+          <input id="rpTo" class="form-control mb-3" autocomplete="off">
+          <label class="choice-label" for="rpTime">เวลาที่รายงาน</label>
+          <div class="input-group mb-3"><span class="input-group-text"><i class="fa-regular fa-clock"></i></span><input type="time" class="form-control" id="rpTime"><button class="btn btn-outline-success now-btn" type="button" data-for="rpTime">ตอนนี้</button></div>
+          <label class="choice-label" for="rpOrders">คำสั่งที่ได้รับ</label>
+          <textarea id="rpOrders" class="form-control mb-2" rows="3" placeholder="เช่น ให้ Adrenaline ต่อทุก 3–5 นาที, ส่ง ABG"></textarea>
+          <div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="rpReadback"><label class="form-check-label fw-bold" for="rpReadback">ทวนคำสั่งซ้ำ และผู้สั่งยืนยันแล้ว</label></div>
+          <div class="small text-muted">ระบบจะเก็บข้อความ ISBAR ณ เวลานี้ ลงตาราง CPR Record และส่งเข้าชีตทั้งฉบับ</div>
+          <p class="text-danger small mb-0 mt-2" id="rpErr" hidden></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+          <button type="button" class="btn btn-success fw-bold" id="rpSave"><i class="fa-solid fa-floppy-disk"></i> บันทึกการรายงาน</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="summaryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title"><i class="fa-solid fa-chart-pie"></i> สรุปภาพรวม CPR (CPR Summary)</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-tabs">
+          <ul class="nav nav-tabs" role="tablist" id="sumTabs">
+            <li class="nav-item" role="presentation"><button class="nav-link active" type="button" role="tab" data-tab="sum" aria-selected="true"><i class="fa-solid fa-chart-pie"></i> สรุปผล CPR</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" data-tab="audit" aria-selected="false"><i class="fa-solid fa-clipboard-list"></i> แบบประเมินการช่วยฟื้นคืนชีพ</button></li>
+          </ul>
+        </div>
+        <div class="modal-body">
+          <div id="tabSum">
+          <div class="row g-3">
+            <div class="col-6 col-md-4"><div class="summary-box"><strong>เริ่ม CPR:</strong><br><span id="sumStart" class="fs-5 text-dark">-</span></div></div>
+            <div class="col-6 col-md-4"><div class="summary-box"><strong>เวลารวม CPR:</strong><br><span id="sumTotalTime" class="fs-5 text-primary">-</span></div></div>
+            <div class="col-12 col-md-4"><div class="summary-box"><strong>ผลลัพธ์:</strong><br><span id="sumOutcome" class="fs-5 text-success">-</span></div></div>
+            <div class="col-6 col-md-4"><div class="summary-box"><strong>จำนวนรอบ (Cycle):</strong><br><span id="sumCycles" class="fs-5 text-danger">-</span></div></div>
+            <div class="col-6 col-md-4"><div class="summary-box"><strong>ECG แรก:</strong><br><span id="sumFirstRhythm" class="fs-5 text-dark">-</span></div></div>
+            <div class="col-12 col-md-4"><div class="summary-box"><strong>ET-Tube:</strong><br><span id="sumTube" class="fs-6 text-info fw-bold">-</span></div></div>
+            <div class="col-6"><div class="summary-box"><strong>Shock:</strong><br><span id="sumShock" class="fs-6 text-danger fw-bold">-</span></div></div>
+            <div class="col-6"><div class="summary-box"><strong>Adrenaline:</strong><br><span id="sumAdr" class="fs-6 text-dark fw-bold">-</span></div></div>
+            <div class="col-6"><div class="summary-box"><strong>เวลาแพทย์มาถึง:</strong><br><span id="sumDocTime" class="fs-5 text-dark">-</span></div></div>
+            <div class="col-6"><div class="summary-box"><strong>เวลาวิสัญญีมาถึง:</strong><br><span id="sumAnesTime" class="fs-5 text-dark">-</span></div></div>
+            <div class="col-12 col-md-6"><div class="summary-box"><strong>ประเมินครั้งแรก:</strong><ul id="sumAssess" class="mb-0 mt-2 text-dark"></ul></div></div>
+            <div class="col-12 col-md-6"><div class="summary-box"><strong>กระบวนการ:</strong><ul id="sumProc" class="mb-0 mt-2 text-dark"></ul></div></div>
+            <div class="col-12"><div class="summary-box"><strong>การรายงาน ISBAR:</strong><ul id="sumReports" class="mb-0 mt-2 text-dark"></ul></div></div>
+            <div class="col-12"><div class="summary-box"><strong>สัดส่วนเวลากดหน้าอก (ประมาณ):</strong> <span id="sumCcf" class="fs-5 text-success">-</span>
+              <div class="progress mint mt-2" style="height:10px"><div id="sumCcfBar" class="progress-bar" style="width:0%"></div></div>
+              <small>คำนวณจากเวลาหยุดกดตอนประเมินชีพจร เป้าหมายอย่างน้อย 60% และควรใกล้ 80%</small></div></div>
+            <div class="col-12"><div class="summary-box"><strong>สาเหตุที่พิจารณา (5H 5T):</strong><br><span id="sumCauses" class="text-dark">-</span></div></div>
+            <div class="col-12"><div class="summary-box"><strong>ปริมาณยาที่ใช้:</strong>
+              <div class="table-responsive mt-2"><table class="table table-sm mb-1 drug-total"><thead><tr><th>ยา</th><th class="text-center">ครั้ง</th><th>รวม</th></tr></thead><tbody id="sumDrugTotals"></tbody></table></div>
+              <small>คิดจำนวน amp จาก Adrenaline 1 mg/amp, Amiodarone 150 mg/amp, Atropine 0.6 mg/amp</small></div></div>
+            <div class="col-12"><div class="summary-box"><strong>ประวัติการให้ยา (Medications List):</strong><ul id="sumMedsList" class="mb-0 mt-2 text-dark"></ul></div></div>
+
+            <div class="col-12"><div class="post-head"><i class="fa-solid fa-pen-to-square"></i> บันทึกเพิ่มเติมหลัง CPR</div><div class="small text-muted">กรอกได้ทุกเวลา ระบบบันทึกให้ทันทีที่เลือกหรือพิมพ์</div></div>
+            <div class="col-12 col-md-6"><div class="post-box"><strong>ภาวะแทรกซ้อนระหว่าง CPR</strong>
+              <div class="pf-checks mt-2" id="pfComp"></div>
+              <input id="pfCompOther" data-pf="compOther" class="form-control form-control-sm mt-2" placeholder="ระบุภาวะแทรกซ้อนอื่น" aria-label="ภาวะแทรกซ้อนอื่น" hidden></div></div>
+            <div class="col-12 col-md-6"><div class="post-box"><strong>หัตถการเพิ่มเติม</strong>
+              <div class="pf-checks mt-2" id="pfProc"></div>
+              <input id="pfProcOther" data-pf="procOther" class="form-control form-control-sm mt-2" placeholder="ระบุหัตถการอื่น" aria-label="หัตถการอื่น" hidden></div></div>
+            <div class="col-12"><div class="post-box"><strong>ประเมินผล CPR</strong>
+              <div class="oc-row">
+                <label class="form-check-label" for="pfStop" style="min-width:170px">ยุติ CPR เวลา</label>
+                <div class="input-group input-group-sm" style="width:auto"><input type="time" id="pfStop" data-pf="stopT" class="form-control"><button class="btn btn-outline-success now-btn" type="button" data-for="pfStop">ตอนนี้</button></div>
+              </div>
+              <div class="oc-row">
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="pfConscious" data-pf="conscious"><label class="form-check-label" for="pfConscious">มีสติ รู้สึกตัว</label></div>
+                <div class="oc-extra" id="pfGcsWrap" hidden>
+                  <div class="input-group input-group-sm" style="width:auto"><span class="input-group-text">E</span><select id="pfE" data-pf="gcsE" class="form-select gcs-sel" aria-label="E"><option value="">-</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
+                  <div class="input-group input-group-sm" style="width:auto"><span class="input-group-text">V</span><select id="pfV" data-pf="gcsV" class="form-select gcs-sel" aria-label="V"><option value="">-</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option value="T">T</option></select></div>
+                  <div class="input-group input-group-sm" style="width:auto"><span class="input-group-text">M</span><select id="pfM" data-pf="gcsM" class="form-select gcs-sel" aria-label="M"><option value="">-</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
+                  <span id="pfGcsText" class="badge bg-success fs-6"></span>
+                </div>
+              </div>
+              <div class="oc-row">
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="pfPulse" data-pf="pulse"><label class="form-check-label" for="pfPulse">มี Pulse / HR</label></div>
+                <div class="oc-extra" id="pfPulseWrap" hidden><div class="input-group input-group-sm" style="width:auto"><input id="pfPulseRate" data-pf="pulseRate" type="number" inputmode="numeric" class="form-control" style="width:90px" aria-label="ชีพจร"><span class="input-group-text">ครั้ง/นาที</span></div></div>
+              </div>
+              <div class="oc-row">
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="pfBp" data-pf="bp"><label class="form-check-label" for="pfBp">วัด BP ได้</label></div>
+                <div class="oc-extra" id="pfBpWrap" hidden><div class="input-group input-group-sm" style="width:auto"><input id="pfSbp" data-pf="sbp" type="number" inputmode="numeric" class="form-control" style="width:80px" placeholder="SBP" aria-label="SBP"><span class="input-group-text">/</span><input id="pfDbp" data-pf="dbp" type="number" inputmode="numeric" class="form-control" style="width:80px" placeholder="DBP" aria-label="DBP"><span class="input-group-text">mmHg</span></div></div>
+              </div>
+              <div class="oc-row">
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="pfTransfer" data-pf="transfer"><label class="form-check-label" for="pfTransfer">ย้ายเข้า</label></div>
+                <div class="oc-extra" id="pfTransferWrap" hidden>
+                  <select id="pfTransferTo" data-pf="transferTo" class="form-select form-select-sm" aria-label="ย้ายเข้าหน่วยงาน"><option value="">เลือก</option><option>ICU</option><option>NICU</option><option>3/2</option><option>7/4</option><option value="อื่นๆ">อื่นๆ (ระบุ)</option></select>
+                  <input id="pfTransferOther" data-pf="transferOther" class="form-control form-control-sm" list="wardList" placeholder="ระบุ ward" aria-label="ward อื่น" hidden>
+                </div>
+              </div>
+              <div class="oc-row">
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="pfResp" data-pf="resp"><label class="form-check-label" for="pfResp">On respirator</label></div>
+              </div>
+              <div class="oc-row">
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="pfDead" data-pf="dead"><label class="form-check-label" for="pfDead">Dead</label></div>
+                <div class="oc-extra" id="pfDeadWrap" hidden><span class="small fw-bold">เวลา</span><input type="time" id="pfDeadT" data-pf="deadT" class="form-control form-control-sm" aria-label="เวลาเสียชีวิต"></div>
+              </div>
+            </div></div>
+            <div class="col-12"><div class="post-box"><strong>หน่วยงานที่มาช่วย</strong>
+              <div class="pf-checks pf-units mt-2" id="pfUnits"></div>
+              <input id="pfUnitsOther" data-pf="unitsOther" class="form-control form-control-sm mt-2" placeholder="ระบุหน่วยงานอื่น" aria-label="หน่วยงานอื่น" hidden></div></div>
+            <div class="col-12 col-md-6"><div class="post-box"><label class="fw-bold" for="pfDefib">Defibrillator มาจาก ward</label><input id="pfDefib" data-pf="defibFrom" list="wardList" class="form-control form-control-sm mt-1" placeholder="ระบุ ward"></div></div>
+            <div class="col-12 col-md-6"><div class="post-box"><label class="fw-bold" for="pfRecorder">ผู้บันทึก</label><input id="pfRecorder" data-pf="recorder" class="form-control form-control-sm mt-1" autocomplete="off"></div></div>
+            <datalist id="wardList"></datalist>
+          </div>
+          </div>
+          <div id="tabAudit" hidden>
+            <div class="audit-score" id="auditScore"></div>
+            <div class="small text-muted mb-3">ติ๊ก Yes หรือ No ทุกข้อ ถ้าเลือก No ให้ระบุสาเหตุ ข้อความสีเขียวใต้หัวข้อดึงจากการบันทึกเพื่อช่วยประเมิน</div>
+            <div id="auditForm"></div>
+            <div class="audit-sec">
+              <h6><label for="auProblems" class="m-0">ปัญหาและอุปสรรค</label></h6>
+              <textarea id="auProblems" class="form-control" rows="4" placeholder="บรรยายปัญหาและอุปสรรคที่พบระหว่างการช่วยฟื้นคืนชีพ"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer flex-wrap">
+          <span id="footSum" class="foot-group me-auto">
+            <button type="button" class="btn btn-success fw-bold" onclick="copySummary()"><i class="fa-solid fa-copy"></i> คัดลอกสรุปลงบันทึกพยาบาล</button>
+            <button type="button" class="btn btn-outline-success fw-bold" onclick="copyTable()"><i class="fa-solid fa-table"></i> คัดลอกเป็นตาราง</button>
+            <button type="button" class="btn btn-outline-danger fw-bold" id="sumNewCase" onclick="askNewCase()"><i class="fa-solid fa-rotate"></i> เริ่มเคสใหม่</button>
+          </span>
+          <span id="footAudit" class="foot-group me-auto" hidden>
+            <button type="button" class="btn btn-success fw-bold" id="auCopy"><i class="fa-solid fa-copy"></i> คัดลอกแบบประเมิน</button>
+          </span>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <script>
+  'use strict';
+  /* ================= ค่าคงที่ ================= */
+  const KEY = 'smartcpr-bidi-state-v3', QKEY = 'smartcpr-bidi-queue-v2', SKEY = 'smartcpr-bidi-settings-v1';
+  const CYCLE_MS = 120000;
+  // ลิงก์ Apps Script (Web app /exec) ที่รับข้อมูลลง Google Sheet
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyTj3bBkCdrnJegKXujetmguCgw625GtVlV5AhtotF0DKcT3IQWlzFNN02Wz-T23RT9/exec';
+  const ONLINE = !!API_URL;
+  const SHOCKABLE = { VF: 1, pVT: 1 };
+  const OUT = { rosc: 'ROSC ส่งดูแลต่อ', term: 'ยุติการกู้ชีพ', transfer: 'ส่งต่อ/ย้ายหน่วยงาน' };
+  const KEEP_KINDS = { start: 1, end: 1, rosc: 1, rearrest: 1 };
+  const CAUSES = [
+    ['H', [['hypovol','Hypovolemia','ปริมาตรเลือดต่ำ'],['hypoxia','Hypoxia','ขาดออกซิเจน'],['acid','Hydrogen ion','เลือดเป็นกรด'],['k','Hypo/Hyperkalemia','โพแทสเซียมต่ำหรือสูง'],['cold','Hypothermia','อุณหภูมิกายต่ำ']]],
+    ['T', [['tension','Tension pneumothorax','ลมในช่องเยื่อหุ้มปอดมีแรงดัน'],['tamp','Tamponade','หัวใจถูกบีบรัด'],['tox','Toxins','สารพิษ/ยาเกินขนาด'],['pe','Thrombosis (ปอด)','ลิ่มเลือดอุดหลอดเลือดปอด'],['mi','Thrombosis (หัวใจ)','หลอดเลือดหัวใจอุดตัน']]]
+  ];
+  const ASSESS = [
+    { key: 'apnea', label: 'หยุดหายใจ' },
+    { key: 'unconscious', label: 'หมดสติ' },
+    { key: 'seizure', label: 'ชัก' },
+    { key: 'cyanosis', label: 'Cyanosis' },
+    { key: 'airway', label: 'Airway Obstruction' },
+    { key: 'weakpulse', label: 'Pulse เบาเร็ว/ช้า', extra: 'rate' },
+    { key: 'nopulse', label: 'คลำชีพจรไม่ได้' },
+    { key: 'bpdrop', label: 'BP drop', extra: 'bp' },
+    { key: 'bpnone', label: 'BP วัดไม่ได้' },
+    { key: 'dyspnea', label: 'หายใจเหนื่อยหอบ', extra: 'rr' },
+    { key: 'flat', label: 'Flat ECG' },
+    { key: 'vf', label: 'EKG show Ventricular Fibrillation' },
+    { key: 'vt', label: 'EKG show Ventricular Tachycardia' },
+    { key: 'other', label: 'อื่นๆ (ระบุ)', extra: 'text' }
+  ];
+  const PROCS = [
+    { key: 'phone', label: 'Phone รหัส 007', short: 'Phone 007', type: 'phone' },
+    { key: 'ett', label: 'ใส่ ET-tube', short: 'ET-tube', type: 'ett', sub: 'ระบุแพทย์หรือวิสัญญีผู้ใส่' },
+    { key: 'oxygen', label: 'ให้ Oxygen', short: 'Oxygen' },
+    { key: 'board', label: 'CPR board', short: 'CPR board' },
+    { key: 'iv', label: 'เปิดเส้นให้ IV', short: 'IV' },
+    { key: 'bls', label: 'เริ่ม Start BLS', short: 'BLS', sub: 'Ambu + Chest compression', hint: 'บันทึกให้อัตโนมัติเมื่อกด START CPR แก้ไขเวลาได้' },
+    { key: 'acls', label: 'เริ่ม ACLS', short: 'ACLS', sub: 'Defibrillator', hint: 'บันทึกให้อัตโนมัติเมื่อบันทึก Rhythm หรือ Shock ครั้งแรก แก้ไขเวลาได้' }
+  ];
+  const DRUGS = [
+    { key: 'adr', name: 'Adrenaline', th: 'อะดีนาลิน', doses: ['1 mg'], unit: 'mg', ref: 'ให้ซ้ำทุก 3–5 นาที' },
+    { key: 'amio', name: 'Amiodarone', th: 'อะมิโอดาโลน', doses: ['300 mg', '150 mg'], unit: 'mg', ref: 'ครั้งแรก 300 mg ครั้งที่สอง 150 mg' },
+    { key: 'lido', name: 'Lidocaine', th: 'ลิโดเคน', doses: ['50 mg', '75 mg', '100 mg'], unit: 'mg', ref: 'ครั้งแรก 1–1.5 mg/kg ครั้งถัดไป 0.5–0.75 mg/kg' },
+    { key: 'cagluc', name: '10% Calcium gluconate', th: 'สิบเปอร์เซ็นต์ แคลเซียมกลูโคเนต', doses: ['1 amp (10 ml)', '2 amp (20 ml)', '3 amp (30 ml)'], unit: 'amp' },
+    { key: 'cacl', name: '10% Calcium chloride', th: 'สิบเปอร์เซ็นต์ แคลเซียมคลอไรด์', doses: ['5 ml', '10 ml'], unit: 'ml' },
+    { key: 'bicarb', name: '7.5% NaHCO3', th: 'โซเดียมไบคาร์บอเนต', doses: ['1 amp (50 ml)', '2 amp (100 ml)'], unit: 'amp' },
+    { key: 'glu', name: '50% Glucose', th: 'ห้าสิบเปอร์เซ็นต์ กลูโคส', doses: ['50 ml', '100 ml'], unit: 'ml' },
+    { key: 'mg', name: 'MgSO4', th: 'แมกนีเซียมซัลเฟต', doses: ['1 g', '2 g'], unit: 'g' },
+    { key: 'atro', name: 'Atropine', th: 'อะโทรปีน', doses: ['0.6 mg', '1 mg'], unit: 'mg' },
+    { key: 'nss', name: '0.9% NSS', th: 'น้ำเกลือ', doses: ['250 ml', '500 ml', '1000 ml'], unit: 'ml' },
+    { key: 'nor', name: 'Norepinephrine drip', th: 'นอร์อิพิเนฟรีน', doses: ['เริ่มหยด', 'ปรับอัตราหยด'], unit: 'ml/hr' },
+    { key: 'other', name: 'ยาอื่นๆ', th: '', doses: [], unit: 'mg', custom: true }
+  ];
+  const TUBE_SIZES = ['6', '6.5', '7', '7.5', '8'];
+  const TUBE_DEPTHS = { Oral: ['19', '20', '21', '22', '23'], Nasal: ['24', '25', '26', '27', '28'] };
+
+  /* ================= ที่เก็บข้อมูล ================= */
+  function lsGet(k) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  let settings = Object.assign({ bpm: 110, metro: true, breath: true, pause302: 4, voice: true, rate: 0.65 }, lsGet(SKEY) || {});
+  function saveSettings() { lsSet(SKEY, settings); }
+  function blank() {
+    return { v: 3, phase: 'idle', startMs: null, endMs: null, segs: [], cycleNo: 1, cycleStartMs: null, checkStartMs: null,
+      mode: '302', shockJ: 200, route: 'IV', events: [], rows: [], seq: 0,
+      info: { hn: '', ward: '', leader: '', recorder: '' }, docTime: '-', anesTime: '-',
+      assess: {}, proc: {}, headId: null, headTime: null, deadIds: [], causes: {}, outcome: null, flags: {},
+      isbar: { name: '', age: '', sex: '', bed: '', role: 'พยาบาลวิชาชีพ', receiver: '', receiverAuto: false, s: '', dx: '', hx: '', allergy: '', pre: '', a: '', r: [], rText: '' },
+      reports: [],
+      post: { comp: [], compOther: '', proc: [], procOther: '', stopT: null, conscious: false, gcsE: '', gcsV: '', gcsM: '', pulse: false, pulseRate: '', bp: false, sbp: '', dbp: '', transfer: false, transferTo: '', transferOther: '', resp: false, dead: false, deadT: null, units: [], unitsOther: '', defibFrom: '' },
+      postId: null, postTime: null,
+      audit: { ans: {}, problems: '' }, auditId: null, auditTime: null };
+  }
+  let S = blank();
+  let resumed = true;
+  function save() { lsSet(KEY, S); scheduleCase(); }
+
+  /* ================= เวลา ================= */
+  const pad = n => String(n).padStart(2, '0');
+  function mmss(ms) { ms = Math.max(0, ms); const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${h}:${pad(m)}:${pad(x)}` : `${pad(m)}:${pad(x)}`; }
+  function hhmm(t) { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+  function hms(t) { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+  function getFormattedShortTime(t) { return hhmm(t || Date.now()); }
+  function thDur(ms) { const s = Math.round(ms / 1000), m = Math.floor(s / 60), x = s % 60; return m ? `${m} นาที ${x} วินาที` : `${x} วินาที`; }
+  function getThaiTimeForSpeech(t) { const d = new Date(t || Date.now()); return `${d.getHours()} นาฬิกา ${d.getMinutes()} นาที`; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function tPlus(t) { if (!S.startMs) return ''; const d = t - S.startMs; return (d <= -1000 ? 'T−' : 'T+') + mmss(Math.abs(d)); }
+  const minuteKey = t => Math.floor(t / 60000);
+  // แปลงค่าจากช่องเวลา HH:MM เป็นเวลาจริง (รองรับเคสข้ามเที่ยงคืน)
+  function timeFromInput(v, ref) {
+    const now = Date.now(); ref = ref || now;
+    if (!/^\d{1,2}:\d{2}/.test(v || '')) return ref;
+    const hm = v.split(':').map(Number);
+    if (Math.abs(ref - now) < 60000 && hhmm(now) === `${pad(hm[0])}:${pad(hm[1])}`) return now;
+    const d = new Date(ref); d.setHours(hm[0], hm[1], 0, 0); let t = d.getTime();
+    if (t - ref > 12 * 3600000) t -= 86400000; else if (ref - t > 12 * 3600000) t += 86400000;
+    return t;
+  }
+  function timeOk(t, errEl) {
+    if (t <= Date.now() + 60000) { if (errEl) errEl.hidden = true; return true; }
+    if (errEl) { errEl.textContent = 'เวลาที่ระบุเกินเวลาปัจจุบัน ตรวจสอบเวลาอีกครั้ง'; errEl.hidden = false; } else toast('เวลาที่ระบุเกินเวลาปัจจุบัน', 'warning');
+    return false;
+  }
+  function readTime(id, errEl) { const t = timeFromInput(document.getElementById(id).value); return timeOk(t, errEl) ? t : null; }
+
+  /* ================= เสียงพูดภาษาไทย ================= */
+  let thVoice = null, voicesSeen = false, bannerTimer;
+  function loadVoices() { try { const vs = window.speechSynthesis.getVoices() || []; voicesSeen = vs.length > 0; thVoice = vs.find(v => /^th([-_]|$)/i.test(v.lang)) || null; } catch (e) {} updateVoiceStatus(); }
+  function updateVoiceStatus() {
+    const el = document.getElementById('voiceStatus'); if (!el) return;
+    if (!('speechSynthesis' in window)) el.textContent = 'เครื่องนี้ไม่รองรับเสียงพูด จะแสดงเป็นข้อความบนจอแทน';
+    else if (thVoice) el.textContent = 'พบเสียงภาษาไทย: ' + thVoice.name;
+    else if (voicesSeen) el.textContent = 'ไม่พบเสียงภาษาไทย (Android: ติดตั้งข้อมูลเสียงไทยใน Google Text-to-Speech)';
+    else el.textContent = 'กดทดสอบเสียงเพื่อตรวจสอบ';
+  }
+  function showVoiceBanner(text) {
+    const b = document.getElementById('voiceBanner'); document.getElementById('voiceText').textContent = text; b.style.display = 'block';
+    clearTimeout(bannerTimer); bannerTimer = setTimeout(() => { b.style.display = 'none'; }, 6000);
+  }
+  function speakThai(text) {
+    showVoiceBanner(text);
+    if (!settings.voice || !('speechSynthesis' in window)) return;
+    try { window.speechSynthesis.resume(); const msg = new SpeechSynthesisUtterance(text); msg.lang = 'th-TH'; if (thVoice) msg.voice = thVoice; msg.rate = settings.rate; window.speechSynthesis.speak(msg); } catch (e) {}
+  }
+  function testVoice() { initAudio(); const was = settings.voice; settings.voice = true; speakThai('ครบ 2 นาที กรุณาคลำชีพจร และประเมินคลื่นไฟฟ้าหัวใจ'); settings.voice = was; setTimeout(loadVoices, 500); }
+  function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+  function doseSpeech(dose) {
+    return String(dose).replace(/\(.*?\)/g, '').replace(/ml\/hr/g, 'มิลลิลิตรต่อชั่วโมง').replace(/mcg/g, 'ไมโครกรัม').replace(/mEq/g, 'มิลลิอิควิวาเลนต์')
+      .replace(/mg/g, 'มิลลิกรัม').replace(/ml/g, 'มิลลิลิตร').replace(/amp/g, 'แอมป์').replace(/unit/g, 'ยูนิต').replace(/(\d)\s*g\b/g, '$1 กรัม');
+  }
+
+  /* ================= เครื่องเคาะจังหวะ ================= */
+  let audioCtx = null, isFirstInteraction = true;
+  function initAudio() {
+    try {
+      if (!audioCtx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) audioCtx = new AC(); }
+      if (audioCtx && audioCtx.state !== 'running') audioCtx.resume();
+      if (isFirstInteraction && 'speechSynthesis' in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+      isFirstInteraction = false;
+    } catch (e) {}
+    return audioCtx;
+  }
+  const Metro = {
+    timer: null, next: 0, count: 0, nextVent: 0, beats: [], running: false,
+    start() { const c = initAudio(); if (!c) return; this.stop(true); this.running = true; this.count = 0; this.next = c.currentTime + 0.06; this.nextVent = this.next + 6; this.timer = setInterval(() => this.sched(), 25); this.sched(); renderMetro(); },
+    stop(quiet) { if (this.timer) clearInterval(this.timer); this.timer = null; this.running = false; this.beats = []; const d = document.getElementById('beatDot'); d.classList.remove('on', 'breath', 'vent'); if (!quiet) { document.getElementById('beatNum').innerHTML = '<i class="fa-solid fa-heart"></i>'; renderMetro(); } },
+    resetPattern() { if (!audioCtx) return; this.count = 0; this.nextVent = audioCtx.currentTime + 6; },
+    sched() {
+      const c = audioCtx; if (!c || !this.running) return;
+      if (this.next < c.currentTime - 0.3) this.next = c.currentTime + 0.02;
+      const ahead = c.currentTime + 0.12; let guard = 0;
+      while (this.next < ahead && guard++ < 24) {
+        const iv = 60 / settings.bpm;
+        if (S.mode === '302') {
+          if (this.count >= 30) { this.cue(this.next, 'breath'); this.beats.push({ t: this.next, k: 'breath' }); this.next += settings.pause302; this.count = 0; continue; }
+          this.count++; this.knock(this.next, this.count === 1); this.beats.push({ t: this.next, k: 'beat', n: this.count }); this.next += iv;
+        } else {
+          this.knock(this.next, false); this.beats.push({ t: this.next, k: 'beat' });
+          if (this.next >= this.nextVent) { this.cue(this.next + 0.05, 'vent'); this.beats.push({ t: this.next, k: 'vent' }); this.nextVent += 6; }
+          this.next += iv;
+        }
+      }
+    },
+    knock(t, accent) { if (!settings.metro) return; let speaking = false; try { speaking = window.speechSynthesis && speechSynthesis.speaking; } catch (e) {} this.tone(t, accent ? 1000 : 800, 0.05, speaking ? 0.35 : 1.0); },
+    cue(t, kind) { if (!settings.breath) return; if (kind === 'breath') { this.tone(t, 660, 0.14, 0.6); this.tone(t + 0.18, 880, 0.16, 0.6); } else { this.tone(t, 520, 0.15, 0.5); } },
+    tone(t, f, d, vol) { try { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(f, t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + d + 0.02); } catch (e) {} }
+  };
+  function beatLoop() {
+    if (audioCtx && Metro.beats.length) {
+      const now = audioCtx.currentTime;
+      while (Metro.beats.length && Metro.beats[0].t <= now) {
+        const b = Metro.beats.shift(), d = document.getElementById('beatDot'), n = document.getElementById('beatNum');
+        if (b.k === 'beat') { d.classList.remove('breath'); d.classList.add('on'); setTimeout(() => d.classList.remove('on'), 85); n.textContent = S.mode === '302' ? b.n : '♥'; }
+        else if (b.k === 'breath') { d.classList.add('breath'); n.textContent = 'หายใจ'; }
+        else if (b.k === 'vent') { d.classList.add('vent'); setTimeout(() => d.classList.remove('vent'), 450); }
+      }
+    }
+    requestAnimationFrame(beatLoop);
+  }
+  function toggleMetroSound() { initAudio(); settings.metro = !settings.metro; saveSettings(); renderMetro(); }
+  function renderMetro() {
+    document.querySelectorAll('#bpmGroup [data-bpm]').forEach(b => b.classList.toggle('active', +b.dataset.bpm === settings.bpm));
+    document.querySelectorAll('#modeGroup [data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === S.mode));
+    document.getElementById('beatDot').classList.toggle('muted', !settings.metro);
+    let note = S.mode === '302' ? 'ยังไม่มีท่อช่วยหายใจ: กด 30 ครั้ง ช่วยหายใจ 2 ครั้ง' : 'มีท่อช่วยหายใจ: กดต่อเนื่อง ช่วยหายใจ 1 ครั้งทุก 6 วินาที';
+    if (!settings.metro) note += ' · ปิดเสียงเคาะอยู่ แตะวงกลมเพื่อเปิด';
+    else if (!Metro.running) note += S.phase === 'idle' ? ' · เริ่มเคาะเมื่อกด START CPR' : ' · หยุดเคาะอยู่';
+    document.getElementById('metroNote').textContent = note;
+  }
+
+  /* ================= เปิดหน้าจอค้าง ================= */
+  let wakeLock = null;
+  async function keepAwake() { try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) { wakeLock = null; } }
+  function releaseWake() { try { if (wakeLock) wakeLock.release(); } catch (e) {} wakeLock = null; }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (S.phase === 'cpr' || S.phase === 'check') && resumed) keepAwake(); });
+
+  /* ================= ส่งข้อมูลเข้า Google Sheet ผ่าน Apps Script ================= */
+  let Q = (lsGet(QKEY) || []).map(q => { q.inflight = false; return q; });
+  let qBusy = false, qFail = false, qTimer = null, flushT = null, lastError = '', lastOkAt = null;
+  function persistQ() { lsSet(QKEY, Q); }
+  const opKey = o => o.sheet + '|' + o.id;
+  function enqueue(op) {
+    const k = opKey(op);
+    if (op.action === 'delete') Q = Q.filter(q => q.inflight || opKey(q) !== k);
+    else {
+      const pend = Q.find(q => !q.inflight && q.action === 'upsert' && opKey(q) === k);
+      if (pend) { pend.data = op.data; persistQ(); scheduleFlush(); return; }
+    }
+    Q.push(op); persistQ(); scheduleFlush();
+  }
+  function upsert(sheet, key, data) { enqueue({ action: 'upsert', sheet, key, id: String(data[key]), data }); }
+  function removeRec(sheet, key, id) { enqueue({ action: 'delete', sheet, key, id: String(id) }); }
+  function scheduleFlush() { renderSync(); clearTimeout(flushT); flushT = setTimeout(flushQ, 300); }
+  async function flushQ() {
+    renderSync();
+    if (qBusy || !Q.length || !ONLINE) return;
+    const batch = Q.filter(q => !q.inflight).slice(0, 25);
+    if (!batch.length) return;
+    batch.forEach(q => { q.inflight = true; });
+    qBusy = true;
+    let ok = false;
+    try {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 45000);
+      const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ ops: batch.map(q => ({ action: q.action, sheet: q.sheet, key: q.key, id: q.id, data: q.data })) }),
+        signal: ctrl ? ctrl.signal : undefined });
+      clearTimeout(timer);
+      const txt = await res.text();
+      let j = null; try { j = JSON.parse(txt); } catch (e) { j = null; }
+      if (!j || !j.ok) {
+        if (/function not found: doPost/i.test(txt)) throw new Error('Apps Script ยังไม่มี doPost ให้วาง Code.gs ใหม่แล้วทำให้ใช้งานได้เป็นเวอร์ชันใหม่');
+        throw new Error(j && j.error ? j.error : `Apps Script ตอบกลับไม่ถูกต้อง (${res.status})`);
+      }
+      const errs = (j.results || []).filter(r => !r.ok);
+      lastError = errs.length ? 'บางรายการบันทึกไม่ได้: ' + errs.map(r => r.error).join(', ') : '';
+      Q = Q.filter(q => !batch.includes(q));
+      ok = true; lastOkAt = Date.now();
+    } catch (e) {
+      batch.forEach(q => { q.inflight = false; });
+      lastError = e && e.name === 'AbortError' ? 'หมดเวลารอการตอบกลับจาก Apps Script' : String(e && e.message || e);
+    }
+    qBusy = false; qFail = !ok; persistQ(); renderSync();
+    if (ok && Q.length) flushQ();
+    else if (!ok) { clearTimeout(qTimer); qTimer = setTimeout(flushQ, 10000); }
+  }
+  function renderSync() {
+    const b = document.getElementById('syncBadge'); let html, warn = false;
+    if (!ONLINE) html = '<i class="fa-solid fa-flask"></i> <span>โหมดทดลอง ไม่เชื่อมชีต</span>';
+    else if (!Q.length) html = '<i class="fa-solid fa-cloud-arrow-up"></i> <span>บันทึกลงชีตแล้ว</span>';
+    else if (qFail) { warn = true; html = `<i class="fa-solid fa-triangle-exclamation"></i> <span>ส่งไม่สำเร็จ รอส่ง ${Q.length} รายการ</span>`; }
+    else html = `<i class="fa-solid fa-rotate"></i> <span>กำลังส่ง ${Q.length} รายการ</span>`;
+    b.innerHTML = html; b.classList.toggle('warn', warn);
+    renderConn();
+  }
+  function renderConn() {
+    const el = document.getElementById('connStatus'); if (!el) return;
+    const parts = [ONLINE ? 'ปลายทาง: Apps Script …' + API_URL.slice(-22) : 'ยังไม่ได้ตั้งค่าลิงก์ Apps Script'];
+    parts.push(Q.length ? `รอส่ง ${Q.length} รายการ` : 'ไม่มีรายการค้างส่ง');
+    if (lastOkAt) parts.push('ส่งสำเร็จล่าสุด ' + hms(lastOkAt));
+    el.textContent = parts.join(' · ');
+    const er = document.getElementById('connError'); er.textContent = lastError || ''; er.hidden = !lastError;
+    const a = document.getElementById('sheetLink');
+    if (settings.sheetUrl) { a.href = settings.sheetUrl; a.hidden = false; } else a.hidden = true;
+  }
+  async function testConnection() {
+    const out = document.getElementById('connTest');
+    if (!ONLINE) { out.textContent = 'ยังไม่ได้ตั้งค่าลิงก์ Apps Script'; return; }
+    out.textContent = 'กำลังทดสอบ...'; out.className = 'small fw-bold text-muted';
+    try {
+      const res = await fetch(API_URL + '?action=ping', { method: 'GET' });
+      const txt = await res.text(); let j = null; try { j = JSON.parse(txt); } catch (e) { j = null; }
+      if (!j || !j.ok) throw new Error(/function not found/i.test(txt) ? 'Apps Script ยังไม่มีโค้ดใหม่ ให้วาง Code.gs แล้วทำให้ใช้งานได้เป็นเวอร์ชันใหม่' : (j && j.error) || 'Apps Script ตอบกลับไม่ถูกต้อง');
+      settings.sheetUrl = j.spreadsheetUrl || ''; saveSettings();
+      out.textContent = 'เชื่อมต่อสำเร็จ · ชีต: ' + (j.sheets || []).join(', '); out.className = 'small fw-bold text-success';
+      renderConn(); flushQ();
+    } catch (e) {
+      out.textContent = 'เชื่อมต่อไม่สำเร็จ: ' + (e && e.message || e); out.className = 'small fw-bold text-danger';
+    }
+  }
+
+  /* ================= ข้อมูลรายเคสที่ส่งเข้าชีต ================= */
+  function thDateStr(t) { const d = new Date(t); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear() + 543}`; }
+  function firstDataTime() {
+    const ts = Object.values(S.assess).map(v => v.t).concat(Object.values(S.proc).map(v => v.t), S.rows.map(r => r.timeMs)).filter(Boolean);
+    return ts.length ? Math.min.apply(null, ts) : null;
+  }
+  function caseRef() { return S.startMs || firstDataTime() || Date.now(); }
+  function caseId() {
+    if (!S.caseId) {
+      const d = new Date(caseRef());
+      S.caseId = `CPR-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-${Math.random().toString(36).slice(2, 6)}`;
+    }
+    return S.caseId;
+  }
+  function caseHasData() { return !!(S.startMs || S.rows.length || Object.keys(S.assess).length || Object.keys(S.proc).length || S.reports.length); }
+  const PHASE_TH = { idle: 'ยังไม่เริ่ม CPR', cpr: 'กำลัง CPR', check: 'กำลัง CPR', rosc: 'ROSC', ended: 'ปิดเคสแล้ว' };
+  function casePayload() {
+    const m = summarize(), pl = postLines(), p = S.post;
+    const pt = k => { const v = S.proc[k]; if (!v) return ''; if (k === 'phone' && v.status === 'no') return 'ไม่ได้ Phone'; return v.t ? hhmm(v.t) : ''; };
+    const stop = p.stopT || cprStopDefault();
+    return {
+      case_id: caseId(), 'วันที่': thDateStr(caseRef()), 'HN': S.info.hn || '', 'อายุ': S.isbar.age || '', 'เพศ': S.isbar.sex || '', 'หอผู้ป่วย': S.info.ward || '',
+      'สถานะ': PHASE_TH[S.phase] || '', 'เริ่ม CPR': S.startMs ? hhmm(S.startMs) : '', 'ยุติ CPR': stop ? hhmm(stop) : '',
+      'เวลา CPR รวม (นาที)': S.startMs ? Math.round(m.total / 6000) / 10 : '', 'จำนวนรอบ': S.startMs ? S.cycleNo : '',
+      'ผลลัพธ์': m.outcome, 'ROSC เวลา': m.rosc ? hhmm(m.rosc.t) : '', 'ECG แรก': m.firstEcg || '',
+      'Shock (ครั้ง)': m.shocks.length, 'Shock รายละเอียด': m.shocks.map(e => `${hhmm(e.t)} ${e.meta.j}J`).join(', '),
+      'Adrenaline (ครั้ง)': m.adr.length, 'ปริมาณยาที่ใช้': drugTotals().map(drugLine).join('\n'),
+      'ประเมินครั้งแรก': m.assess.join('\n'), 'กระบวนการ': m.proc.join('\n'),
+      'Phone 007': pt('phone'), 'ET-tube': S.proc.ett ? `${tubeDesc(S.proc.ett)} (${hhmm(S.proc.ett.t)})${tubeBy(S.proc.ett) ? ' ' + tubeBy(S.proc.ett) : ''}` : '',
+      'ให้ Oxygen': pt('oxygen'), 'CPR board': pt('board'), 'เปิดเส้น IV': pt('iv'), 'เริ่ม BLS': pt('bls'), 'เริ่ม ACLS': pt('acls'),
+      'แพทย์มาถึง': S.docTime === '-' ? '' : S.docTime, 'วิสัญญีมาถึง': S.anesTime === '-' ? '' : S.anesTime,
+      'สัดส่วนเวลากดหน้าอก (%)': m.ccf != null ? m.ccf : '', '5H 5T': m.causes.join(', '),
+      'ภาวะแทรกซ้อน': pl.comp.join(', '), 'หัตถการเพิ่มเติม': pl.proc.join(', '), 'ประเมินผล CPR': pl.outcome.join('\n'),
+      'GCS': p.conscious ? gcsText(p) : '', 'Pulse/HR': p.pulse ? (p.pulseRate || '✓') : '', 'BP หลัง CPR': p.bp ? `${p.sbp || '-'}/${p.dbp || '-'}` : '',
+      'ย้ายเข้า': p.transfer ? (p.transferTo === 'อื่นๆ' ? (p.transferOther || 'อื่นๆ') : (p.transferTo || '✓')) : '',
+      'On respirator': p.resp ? '✓' : '', 'Dead': p.dead ? '✓' : '', 'เวลาเสียชีวิต': p.dead && p.deadT ? hhmm(p.deadT) : '',
+      'หน่วยงานที่มาช่วย': pl.units.join(', '), 'Defibrillator มาจาก': pl.defib || '', 'โรคประจำตัว': S.isbar.hx || '',
+      'เหตุการณ์ก่อนหัวใจหยุดเต้น': S.isbar.pre || '', 'จำนวนการรายงาน ISBAR': S.reports.length,
+      'ผู้นำทีม': S.info.leader || '', 'ผู้บันทึก': S.info.recorder || '', 'สรุปข้อความ': summaryText()
+    };
+  }
+  let caseTimer = null;
+  function scheduleCase() { if (!ONLINE || !caseHasData()) return; clearTimeout(caseTimer); caseTimer = setTimeout(syncCase, 2500); }
+  function syncCase() {
+    caseTimer = null;
+    if (!caseHasData()) return;
+    if ((S.info.hn || '') !== (S.syncedHn || '')) { S.syncedHn = S.info.hn || ''; S.rows.forEach(syncRow); }
+    upsert('CPR_Case', 'case_id', casePayload());
+    lsSet(KEY, S);
+  }
+  function flushPendingSync() {
+    if (postTimer) { clearTimeout(postTimer); postTimer = null; }
+    if (auditTimer) { clearTimeout(auditTimer); auditTimer = null; syncAudit(); }
+    if (caseTimer) { clearTimeout(caseTimer); syncCase(); }
+    clearTimeout(flushT); flushQ();
+  }
+
+  /* ================= แถวตาราง CPR Record (หนึ่งนาทีต่อหนึ่งแถว ตามเวลาจริง) ================= */
+  function newRowId(t) { let id = 'ID_' + t; while (S.rows.some(r => r.id === id) || (S.deadIds || []).includes(id)) id += '_1'; return id; }
+  function killRowId(id) { (S.deadIds = S.deadIds || []).push(id); removeRec('CPR_Record', 'id', id); }
+  function makeRow(t, cpr) { return { id: newRowId(t), timeMs: t, timeStr: hhmm(t), cpr: !!cpr, p: '', rr: '', ecg: '', sbp: '', dbp: '', acts: [] }; }
+  function rowBp(r) { return (r.sbp || r.dbp) ? `${r.sbp || '-'}/${r.dbp || '-'}` : ''; }
+  // หนึ่งแถวในชีต CPR_Record
+  function rowPayload(r) {
+    return { id: r.id, case_id: caseId(), 'วันที่': thDateStr(r.timeMs), 'เวลา': r.timeStr, 'CPR': r.cpr ? '✓' : '', 'P (BPM)': r.p || '', 'RR (BPM)': r.rr || '',
+      'ECG': r.ecg || '', 'SBP': r.sbp || '', 'DBP': r.dbp || '', 'BP (mmHg)': rowBp(r), 'กิจกรรม / ยา': r.acts.join('\n'), 'HN': S.info.hn || '' };
+  }
+  function rowEmpty(r) { return !r.p && !r.rr && !r.ecg && !r.sbp && !r.dbp && !r.acts.length; }
+  function syncRow(r) { upsert('CPR_Record', 'id', rowPayload(r)); }
+  function cprAt(t) { return (S.phase === 'cpr' || S.phase === 'check') && S.startMs && t >= S.startMs - 1000; }
+  function placeInRow(t, act, patch) {
+    let row = S.rows.find(r => minuteKey(r.timeMs) === minuteKey(t));
+    const isNew = !row;
+    if (isNew) { row = makeRow(t, cprAt(t)); S.rows.push(row); }
+    if (patch) Object.keys(patch).forEach(k => { if (patch[k] !== undefined && patch[k] !== '') row[k] = patch[k]; });
+    if (act) row.acts.push(act);
+    syncRow(row);
+    return row;
+  }
+  function logEvent(o) {
+    const t = o.t || Date.now();
+    if (!o.act && !o.patch && !o.text) return null;
+    const row = placeInRow(t, o.act, o.patch);
+    const ev = { id: ++S.seq, t, kind: o.kind, text: o.text || o.act || '', act: o.act || '', meta: o.meta || {}, rowId: row.id };
+    S.events.push(ev); S.events.sort((a, b) => a.t - b.t || a.id - b.id);
+    save(); renderAll(); return ev;
+  }
+  function removeEventAct(ev) {
+    const row = S.rows.find(r => r.id === ev.rowId);
+    if (row) {
+      const i = row.acts.indexOf(ev.act); if (i >= 0) row.acts.splice(i, 1);
+      if (rowEmpty(row)) { S.rows = S.rows.filter(r => r !== row); killRowId(row.id); }
+      else syncRow(row);
+    }
+    S.events = S.events.filter(e => e !== ev);
+  }
+  const evOf = k => S.events.filter(e => e.kind === k);
+  function lastAdr() { const a = evOf('adr'); return a.length ? a[a.length - 1] : null; }
+  function amioCount() { return evOf('amio').length; }
+  function isLive() { return S.phase === 'cpr' || S.phase === 'check' || S.phase === 'rosc'; }
+  function cprMs() { return (S.segs || []).reduce((a, s) => a + ((s.e || Date.now()) - s.s), 0); }
+  function closeSeg(t) { const s = S.segs[S.segs.length - 1]; if (s && !s.e) s.e = t; }
+  function toast(title, icon) { Swal.fire({ toast: true, position: 'top-end', icon: icon || 'success', title, showConfirmButton: false, timer: 1800 }); }
+  function hideModal(id) { const m = bootstrap.Modal.getInstance(document.getElementById(id)); if (m) m.hide(); }
+  function showModal(id) { bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).show(); }
+  function requireLive() { if (isLive() && resumed) return true; toast(S.phase === 'ended' ? 'ปิดเคสแล้ว กดเริ่มเคสใหม่' : 'กด START CPR ก่อน', 'info'); return false; }
+
+  /* ================= ข้อมูลส่วนหัวเคส (ประเมินครั้งแรก + กระบวนการ) ส่งเข้าชีตเป็นหนึ่งแถว ================= */
+  function assessDetail(a, v) {
+    if (a.extra === 'rate' && v.rate) return `${v.rate} ครั้ง/นาที`;
+    if (a.extra === 'bp' && (v.sbp || v.dbp)) return `SBP ${v.sbp || '-'} / DBP ${v.dbp || '-'} mmHg`;
+    if (a.extra === 'rr' && v.rr) return `${v.rr} ครั้ง/นาที`;
+    if (a.extra === 'text' && v.text) return v.text;
+    return '';
+  }
+  function assessText(a, v) { const d = assessDetail(a, v); if (a.key === 'other') return d ? `อื่นๆ: ${d}` : 'อื่นๆ'; return d ? `${a.label} ${d}` : a.label; }
+  function tubeDesc(e) { return `ET-tube ${e.route} No.${e.size}${e.depth ? ` ลึก ${e.depth} cm` : ''}`; }
+  function tubeBy(e) { if (!e.name && !e.by) return ''; return `${e.by === 'anes' ? 'วิสัญญี' : 'แพทย์'}${e.name ? ' ' + e.name : ''}`; }
+  function procText(p, v) {
+    if (p.type === 'phone') return v.status === 'no' ? 'ไม่ได้ Phone รหัส 007' : `Phone รหัส 007 (${hhmm(v.t)})`;
+    if (p.type === 'ett') return `ใส่ ${tubeDesc(v)}${tubeBy(v) ? ` โดย${tubeBy(v)}` : ''} (${hhmm(v.t)})`;
+    return `${p.label}${p.sub ? ` (${p.sub})` : ''} (${hhmm(v.t)})`;
+  }
+  function headPayload() {
+    const a = ASSESS.filter(x => S.assess[x.key]).map(x => `${assessText(x, S.assess[x.key])} (${hhmm(S.assess[x.key].t)})`);
+    const p = PROCS.filter(x => S.proc[x.key]).map(x => procText(x, S.proc[x.key]));
+    if (!a.length && !p.length) return null;
+    const times = Object.values(S.assess).map(v => v.t).concat(Object.values(S.proc).map(v => v.t)).filter(Boolean);
+    const first = times.length ? Math.min.apply(null, times) : Date.now();
+    const bd = S.assess.bpdrop;
+    const bp = bd && (bd.sbp || bd.dbp) ? `${bd.sbp || '-'}/${bd.dbp || '-'}` : S.assess.bpnone ? 'วัดไม่ได้' : '-';
+    const ekg = S.assess.vf ? 'VF' : S.assess.vt ? 'VT' : S.assess.flat ? 'Flat ECG' : '-';
+    const acts = [a.length ? 'ประเมินครั้งแรก: ' + a.join(', ') : '', p.length ? 'กระบวนการ: ' + p.join(', ') : ''].filter(Boolean).join(' | ');
+    return { timeStr: hhmm(first), bp, ekg, activities: acts };
+  }
+  function syncHead() { save(); }
+  function autoProc(key, t) { if (!S.proc[key]) { S.proc[key] = { t, auto: true }; syncHead(); } }
+
+  /* ================= ประเมินครั้งแรก ================= */
+  let asKey = null;
+  function renderAssess() {
+    document.getElementById('assessList').innerHTML = ASSESS.map(a => {
+      const v = S.assess[a.key], d = v ? assessDetail(a, v) : '';
+      return `<div class="col-12 col-md-6 col-xl-4"><div class="check-item${v ? ' on' : ''}">
+        <input class="form-check-input" type="checkbox" id="as_${a.key}" data-key="${a.key}"${v ? ' checked' : ''}>
+        <label for="as_${a.key}">${esc(a.label)}${d ? `<span class="check-meta">${esc(d)}</span>` : ''}</label>
+        ${v ? `<button type="button" class="time-chip" data-edit="${a.key}" aria-label="แก้ไขเวลา ${esc(a.label)}">${hhmm(v.t)} <i class="fa-solid fa-pen fa-xs"></i></button>` : ''}
+      </div></div>`;
+    }).join('');
+    const on = ASSESS.filter(a => S.assess[a.key]);
+    document.getElementById('assessCount').textContent = `${on.length}/${ASSESS.length}`;
+    document.getElementById('assessSub').textContent = on.length ? on.map(a => `${a.key === 'other' ? (S.assess.other.text || 'อื่นๆ') : a.label} ${hhmm(S.assess[a.key].t)}`).join(' · ') : 'ยังไม่ได้ติ๊ก';
+  }
+  function openAssess(key) {
+    const a = ASSESS.find(x => x.key === key), v = S.assess[key];
+    asKey = key;
+    document.getElementById('asTitle').textContent = a.label;
+    document.getElementById('asTime').value = hhmm(v ? v.t : Date.now());
+    document.getElementById('asRateWrap').hidden = a.extra !== 'rate';
+    document.getElementById('asBpWrap').hidden = a.extra !== 'bp';
+    document.getElementById('asRrWrap').hidden = a.extra !== 'rr';
+    document.getElementById('asTextWrap').hidden = a.extra !== 'text';
+    document.getElementById('asRate').value = v && v.rate || '';
+    document.getElementById('asSbp').value = v && v.sbp || '';
+    document.getElementById('asDbp').value = v && v.dbp || '';
+    document.getElementById('asRr').value = v && v.rr || '';
+    document.getElementById('asText').value = v && v.text || '';
+    document.getElementById('asRemove').hidden = !v;
+    document.getElementById('asErr').hidden = true;
+    showModal('assessModal');
+  }
+  function saveAssess() {
+    const a = ASSESS.find(x => x.key === asKey), err = document.getElementById('asErr');
+    const v = S.assess[asKey];
+    const t = timeFromInput(document.getElementById('asTime').value, v ? v.t : Date.now());
+    if (!timeOk(t, err)) return;
+    const val = { t };
+    const g = id => document.getElementById(id).value.trim();
+    if (a.extra === 'rate') val.rate = g('asRate');
+    if (a.extra === 'bp') { val.sbp = g('asSbp'); val.dbp = g('asDbp'); }
+    if (a.extra === 'rr') val.rr = g('asRr');
+    if (a.extra === 'text') { val.text = g('asText'); if (!val.text) { err.textContent = 'ระบุอาการอื่นๆ ก่อนบันทึก'; err.hidden = false; return; } }
+    S.assess[asKey] = val; syncHead();
+    hideModal('assessModal'); renderAll(); toast(`บันทึก ${a.label} ${hhmm(t)}`);
+  }
+  function removeAssess(key) { delete S.assess[key]; syncHead(); renderAll(); }
+
+  /* ================= กระบวนการ ================= */
+  let pcKey = null, pcChoice = 'yes';
+  function renderProc() {
+    document.getElementById('procList').innerHTML = PROCS.map((p, i) => {
+      const v = S.proc[p.key]; let status, cls = '';
+      if (!v) status = '<span class="proc-status empty">ยังไม่บันทึก <i class="fa-solid fa-chevron-right"></i></span>';
+      else if (p.type === 'phone' && v.status === 'no') { cls = ' skip'; status = '<span class="proc-status text-secondary">ไม่ได้ Phone <i class="fa-solid fa-pen fa-xs"></i></span>'; }
+      else { cls = ' done'; status = `<span class="proc-status">${hhmm(v.t)} <i class="fa-solid fa-pen fa-xs"></i></span>`; }
+      let sub = p.sub || '';
+      if (p.type === 'ett' && v) sub = [tubeDesc(v), tubeBy(v)].filter(Boolean).join(' · ');
+      if (v && v.auto) sub = (sub ? sub + ' · ' : '') + 'บันทึกอัตโนมัติ';
+      return `<div class="col-12 col-md-6"><button type="button" class="proc-item${cls}" data-proc="${p.key}"><span class="proc-num">${i + 1}</span><span class="proc-label">${esc(p.label)}${sub ? `<small>${esc(sub)}</small>` : ''}</span>${status}</button></div>`;
+    }).join('');
+    const done = PROCS.filter(p => S.proc[p.key]);
+    document.getElementById('procCount').textContent = `${done.length}/${PROCS.length}`;
+    document.getElementById('procSub').textContent = done.length ? done.map(p => { const v = S.proc[p.key]; return p.type === 'phone' && v.status === 'no' ? 'ไม่ได้ Phone' : `${p.short} ${hhmm(v.t)}`; }).join(' · ') : 'ยังไม่ได้บันทึก';
+  }
+  function openProc(key) {
+    if (key === 'ett') { showModal('tubeModal'); return; }
+    const i = PROCS.findIndex(x => x.key === key), p = PROCS[i], v = S.proc[key];
+    pcKey = key; pcChoice = v && v.status === 'no' ? 'no' : 'yes';
+    document.getElementById('pcTitle').textContent = `${i + 1}. ${p.label}${p.sub ? ` (${p.sub})` : ''}`;
+    document.getElementById('pcChoiceWrap').hidden = p.type !== 'phone';
+    document.getElementById('pcTime').value = hhmm(v && v.t ? v.t : Date.now());
+    document.getElementById('pcHint').textContent = p.hint || '';
+    document.getElementById('pcRemove').hidden = !v;
+    document.getElementById('pcErr').hidden = true;
+    renderProcChoice(); showModal('procModal');
+  }
+  function renderProcChoice() {
+    document.querySelectorAll('#pcChoice [data-choice]').forEach(b => b.classList.toggle('active', b.dataset.choice === pcChoice));
+    document.getElementById('pcTimeWrap').hidden = pcKey === 'phone' && pcChoice === 'no';
+  }
+  function saveProc() {
+    const p = PROCS.find(x => x.key === pcKey), v = S.proc[pcKey], err = document.getElementById('pcErr');
+    if (p.type === 'phone' && pcChoice === 'no') S.proc.phone = { status: 'no', t: null };
+    else {
+      const t = timeFromInput(document.getElementById('pcTime').value, v && v.t ? v.t : Date.now());
+      if (!timeOk(t, err)) return;
+      S.proc[pcKey] = p.type === 'phone' ? { status: 'yes', t } : { t };
+    }
+    syncHead(); hideModal('procModal'); renderAll(); toast('บันทึก ' + p.label);
+  }
+
+  /* ================= ET-tube (Oral / Nasal) ================= */
+  let tt = { route: 'Oral', size: '', depth: '', by: 'doc' };
+  function prefillTube() {
+    const e = S.proc.ett;
+    tt = e ? { route: e.route, size: e.size, depth: e.depth, by: e.by || 'doc' } : { route: 'Oral', size: '', depth: '', by: 'doc' };
+    document.getElementById('tubeSizeCustom').value = e && !TUBE_SIZES.includes(e.size) ? e.size : '';
+    document.getElementById('tubeDepthCustom').value = e && e.depth && !TUBE_DEPTHS[e.route].includes(e.depth) ? e.depth : '';
+    document.getElementById('tubeTime').value = hhmm(e ? e.t : Date.now());
+    document.getElementById('tubeName').value = e ? (e.name || '') : '';
+    document.getElementById('tubeRemove').hidden = !e;
+    document.getElementById('tubeErr').hidden = true;
+    renderTube();
+  }
+  function tubeValues() {
+    const sc = document.getElementById('tubeSizeCustom').value.trim(), dc = document.getElementById('tubeDepthCustom').value.trim();
+    return { size: sc || tt.size, depth: dc || tt.depth };
+  }
+  function renderTube() {
+    const sc = document.getElementById('tubeSizeCustom').value.trim(), dc = document.getElementById('tubeDepthCustom').value.trim();
+    document.querySelectorAll('#tubeRoute [data-route]').forEach(b => b.classList.toggle('active', b.dataset.route === tt.route));
+    document.getElementById('tubeSize').innerHTML = TUBE_SIZES.map(s => `<button type="button" class="btn btn-outline-info text-dark fw-bold${!sc && tt.size === s ? ' active' : ''}" data-size="${s}">${s}</button>`).join('');
+    document.getElementById('tubeDepth').innerHTML = TUBE_DEPTHS[tt.route].map(d => `<button type="button" class="btn btn-outline-secondary fw-bold${!dc && tt.depth === d ? ' active' : ''}" data-depth="${d}">${d}</button>`).join('');
+    document.querySelectorAll('#tubeBy [data-by]').forEach(b => b.classList.toggle('active', b.dataset.by === tt.by));
+    const v = tubeValues(), name = document.getElementById('tubeName').value.trim();
+    document.getElementById('tubePreview').textContent = v.size
+      ? `${tubeDesc({ route: tt.route, size: v.size, depth: v.depth })}${v.depth ? '' : ' (ยังไม่ระบุความลึก)'} · ${tt.by === 'anes' ? 'วิสัญญี' : 'แพทย์'}${name ? ' ' + name : ''}`
+      : 'เลือกชนิด ขนาด และความลึกของ Tube';
+  }
+  function saveTube() {
+    const err = document.getElementById('tubeErr'), v = tubeValues(), prev = S.proc.ett;
+    if (!v.size) { err.textContent = 'เลือกหรือพิมพ์ขนาด Tube ก่อนบันทึก'; err.hidden = false; return; }
+    const t = timeFromInput(document.getElementById('tubeTime').value, prev ? prev.t : Date.now());
+    if (!timeOk(t, err)) return;
+    const e = { route: tt.route, size: v.size, depth: v.depth, by: tt.by, name: document.getElementById('tubeName').value.trim(), t };
+    S.proc.ett = e;
+    const act = tubeDesc(e) + (tubeBy(e) ? ` (${tubeBy(e)})` : '');
+    const old = S.events.find(x => x.kind === 'tube');
+    if (old) removeEventAct(old);
+    logEvent({ kind: 'tube', act, meta: { tube: e }, t });
+    syncHead();
+    hideModal('tubeModal');
+    if (isLive() && S.mode !== 'cont') { S.mode = 'cont'; Metro.resetPattern(); save(); speakThai('ใส่ท่อช่วยหายใจแล้ว เปลี่ยนเป็นกดหน้าอกต่อเนื่อง ช่วยหายใจทุกหกวินาที'); }
+    renderAll(); toast('บันทึก ' + tubeDesc(e));
+  }
+  function removeTube() {
+    const old = S.events.find(x => x.kind === 'tube'); if (old) removeEventAct(old);
+    delete S.proc.ett; syncHead(); save(); hideModal('tubeModal'); renderAll(); toast('ลบรายการ ET-tube แล้ว');
+  }
+
+
+  /* ================= ISBAR รายงานแพทย์ / ส่งเวร ================= */
+  const IB_FIELDS = { ibAge: 'age', ibSex: 'sex', ibS: 's', ibHx: 'hx', ibPre: 'pre', ibA: 'a' };
+  const IB_INFO = { ibHn: 'hn' };
+  let ibRenderedAt = 0, rpType = 'doctor';
+  function fillIsbar() {
+    Object.keys(IB_FIELDS).forEach(id => { document.getElementById(id).value = S.isbar[IB_FIELDS[id]] || ''; });
+    Object.keys(IB_INFO).forEach(id => { document.getElementById(id).value = S.info[IB_INFO[id]] || ''; });
+  }
+  function isbarSituation() {
+    const L = [], asm = ASSESS.filter(a => S.assess[a.key]).sort((x, y) => S.assess[x.key].t - S.assess[y.key].t);
+    asm.forEach(a => L.push(`${assessText(a, S.assess[a.key])} เวลา ${hhmm(S.assess[a.key].t)} น.`));
+    if (S.startMs) L.push(`เกิดภาวะหัวใจหยุดเต้น เริ่มช่วยฟื้นคืนชีพ (CPR) เวลา ${hhmm(S.startMs)} น.`);
+    const re = evOf('rearrest').length; if (re) L.push(`หัวใจหยุดเต้นซ้ำ ${re} ครั้ง`);
+    if (S.phase === 'cpr' || S.phase === 'check') L.push(`ขณะนี้กำลัง CPR รอบที่ ${S.cycleNo} เวลา CPR รวม ${thDur(cprMs())}`);
+    else if (S.phase === 'rosc') { const r = evOf('rosc').pop(); L.push(`ขณะนี้กลับมามีชีพจร (ROSC) ตั้งแต่เวลา ${r ? hhmm(r.t) : '-'} น. หลัง CPR รวม ${thDur(cprMs())}`); }
+    else if (S.phase === 'ended') L.push(`สิ้นสุดการช่วยฟื้นคืนชีพเวลา ${hhmm(S.endMs)} น.: ${OUT[S.outcome] || '-'} เวลา CPR รวม ${thDur(cprMs())}`);
+    else if (!asm.length) L.push('ยังไม่ได้บันทึกอาการหรือเริ่ม CPR');
+    return L;
+  }
+  function isbarAssessment() {
+    const L = [], m = summarize();
+    const rows = S.rows.slice().sort((a, b) => a.timeMs - b.timeMs), ecgRows = rows.filter(r => r.ecg);
+    if (ecgRows.length) { const f = ecgRows[0].ecg, l = ecgRows[ecgRows.length - 1]; L.push(`คลื่นไฟฟ้าหัวใจ: แรกพบ ${f}${ecgRows.length > 1 && l.ecg !== f ? `, ล่าสุด ${l.ecg} (${l.timeStr} น.)` : ''}`); }
+    else { const a = S.assess; const e = a.vf ? 'Ventricular Fibrillation' : a.vt ? 'Ventricular Tachycardia' : a.flat ? 'Flat ECG' : ''; if (e) L.push(`คลื่นไฟฟ้าหัวใจ: ${e}`); else if (S.startMs) L.push('คลื่นไฟฟ้าหัวใจ: ยังไม่ได้บันทึก'); }
+    if (S.startMs || m.shocks.length) L.push(m.shocks.length ? `ช็อกไฟฟ้า ${m.shocks.length} ครั้ง (${m.shocks.map(e => e.meta.j + 'J').join(', ')}) ล่าสุด ${hhmm(m.shocks[m.shocks.length - 1].t)} น.` : 'ยังไม่ได้ช็อกไฟฟ้า');
+    if (S.startMs || m.adr.length) L.push(m.adr.length ? `Adrenaline 1 mg ${m.adr.length} ครั้ง ล่าสุด ${hhmm(m.adr[m.adr.length - 1].t)} น.` : 'ยังไม่ได้ให้ Adrenaline');
+    const others = m.meds.filter(e => e.kind !== 'adr'); if (others.length) L.push('ยาอื่น: ' + others.map(e => `${e.text} (${hhmm(e.t)})`).join(', '));
+    const air = [S.proc.ett ? `${tubeDesc(S.proc.ett)} เวลา ${hhmm(S.proc.ett.t)} น.${tubeBy(S.proc.ett) ? ' โดย' + tubeBy(S.proc.ett) : ''}` : 'ยังไม่ได้ใส่ท่อช่วยหายใจ', S.proc.oxygen ? `ให้ Oxygen เวลา ${hhmm(S.proc.oxygen.t)} น.` : ''].filter(Boolean);
+    L.push('ทางเดินหายใจ: ' + air.join(', '));
+    L.push(S.proc.iv ? `เปิดเส้นให้ IV เวลา ${hhmm(S.proc.iv.t)} น.` : 'ยังไม่ได้บันทึกการเปิดเส้นให้ IV');
+    const vr = rows.filter(r => r.p || r.rr || r.sbp || r.dbp).pop(), ve = evOf('vital').pop();
+    if (vr || ve) {
+      const parts = []; if (vr) { if (vr.p) parts.push(`P ${vr.p}`); if (vr.rr) parts.push(`RR ${vr.rr}`); if (rowBp(vr)) parts.push(`BP ${rowBp(vr)} mmHg`); }
+      if (ve && ve.meta.sp) parts.push(`SpO2 ${ve.meta.sp}%`); if (ve && ve.meta.et) parts.push(`EtCO2 ${ve.meta.et} mmHg`);
+      L.push(`สัญญาณชีพล่าสุด (${vr ? vr.timeStr : hhmm(ve.t)} น.): ${parts.join(' ') || '-'}`);
+    }
+    const dtx = evOf('dtx').pop(); if (dtx) L.push(`DTX ล่าสุด ${dtx.meta.dtx} mg% (${hhmm(dtx.t)} น.)`);
+    if (S.startMs) L.push(`CPR ${S.cycleNo} รอบ${m.ccf != null ? ` สัดส่วนเวลากดหน้าอกประมาณ ${m.ccf}%` : ''}`);
+    if (m.causes.length) L.push('สาเหตุที่พิจารณา: ' + m.causes.join(', '));
+    return L;
+  }
+  function isbarText(meta) {
+    const ib = S.isbar, info = S.info, now = meta && meta.t || Date.now(), L = [];
+    const typeTxt = meta ? (meta.type === 'handover' ? ' (ส่งเวร)' : ' (รายงานแพทย์)') : '';
+    L.push(`รายงาน ISBAR${typeTxt} เวลา ${hhmm(now)} น. วันที่ ${new Date(now).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}`);
+    L.push('', 'I – Identify (ระบุตัวตน)');
+    L.push(`ผู้ป่วย: ${[ib.age && `อายุ ${ib.age} ปี`, ib.sex && `เพศ${ib.sex}`, info.hn && `HN ${info.hn}`].filter(Boolean).join(' ') || '-'}`);
+    L.push('', 'S – Situation (สถานการณ์)');
+    isbarSituation().forEach(x => L.push('- ' + x)); if (ib.s) L.push('- ' + ib.s);
+    L.push('', 'B – Background (ข้อมูลพื้นฐาน)');
+    const b = [ib.hx && `โรคประจำตัว/ประวัติสำคัญ: ${ib.hx}`, ib.pre && `เหตุการณ์ก่อนหัวใจหยุดเต้น: ${ib.pre}`].filter(Boolean);
+    if (b.length) b.forEach(x => L.push('- ' + x)); else L.push('- ไม่ได้ระบุ');
+    L.push('', 'A – Assessment (การประเมิน)');
+    isbarAssessment().forEach(x => L.push('- ' + x)); if (ib.a) L.push('- การประเมินของพยาบาล: ' + ib.a);
+    if (meta && meta.orders) { L.push('', 'คำสั่งที่ได้รับ' + (meta.readback ? ' (ทวนคำสั่งซ้ำแล้ว)' : '')); L.push('- ' + meta.orders); }
+    if (meta && meta.to) L.push('', `รายงานแก่ ${meta.to}`);
+    return L.join('\n');
+  }
+  function reportLabel(rp) { return `${hhmm(rp.t)} ${rp.type === 'handover' ? 'ส่งเวร' : 'รายงานแพทย์'}${rp.to ? ': ' + rp.to : ''}${rp.readback ? ' · ทวนคำสั่งแล้ว' : ''}`; }
+  function renderIsbar() {
+    ibRenderedAt = Date.now();
+    document.getElementById('ibSAuto').textContent = isbarSituation().join('\n');
+    document.getElementById('ibAAuto').textContent = isbarAssessment().join('\n');
+    document.getElementById('ibPreview').textContent = isbarText();
+    const last = S.reports[S.reports.length - 1], badge = document.getElementById('isbarBadge');
+    badge.textContent = last ? `รายงานแล้ว ${S.reports.length} ครั้ง` : 'ยังไม่ได้รายงาน';
+    badge.className = 'badge ' + (last ? 'bg-success' : 'bg-secondary');
+    document.getElementById('isbarSub').textContent = last ? 'ล่าสุด ' + reportLabel(last) : 'แตะเพื่อเปิดแบบรายงาน';
+    document.getElementById('ibReports').innerHTML = S.reports.map(rp => `<li><i class="fa-solid fa-circle-check text-success"></i> ${esc(reportLabel(rp))}${rp.orders ? `<br><small>คำสั่ง: ${esc(rp.orders)}</small>` : ''}</li>`).join('');
+  }
+  function openIsbar() {
+    const d = document.getElementById('secIsbar'); d.open = true; renderIsbar();
+    try { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { d.scrollIntoView(); }
+  }
+  function openReport() {
+    rpType = S.reports.length && S.phase === 'ended' ? 'handover' : 'doctor';
+    document.getElementById('rpTo').value = S.isbar.receiver || '';
+    document.getElementById('rpTime').value = hhmm(Date.now());
+    document.getElementById('rpOrders').value = '';
+    document.getElementById('rpReadback').checked = false;
+    document.getElementById('rpErr').hidden = true;
+    renderReportType(); showModal('reportModal');
+  }
+  function renderReportType() { document.querySelectorAll('#rpType [data-rt]').forEach(b => b.classList.toggle('active', b.dataset.rt === rpType)); }
+  function saveReport() {
+    const err = document.getElementById('rpErr'), to = document.getElementById('rpTo').value.trim();
+    const t = readTime('rpTime', err); if (t == null) return;
+    const orders = document.getElementById('rpOrders').value.trim(), readback = document.getElementById('rpReadback').checked;
+    if (orders && !readback) { err.textContent = 'มีคำสั่งที่ได้รับ กรุณาทวนคำสั่งซ้ำกับผู้สั่งแล้วติ๊กยืนยันก่อนบันทึก'; err.hidden = false; return; }
+    const meta = { t, type: rpType, to, orders, readback };
+    const text = isbarText(meta), id = 'ID_' + Date.now() + '_R';
+    S.reports.push(Object.assign({ id, text }, meta));
+    if (to && !S.isbar.receiver) S.isbar.receiver = to;
+    upsert('CPR_ISBAR', 'id', { id, case_id: caseId(), 'วันที่': thDateStr(t), 'เวลา': hhmm(t), 'ประเภท': rpType === 'handover' ? 'ส่งเวร' : 'รายงานแพทย์',
+      'ผู้รับรายงาน': to, 'คำสั่งที่ได้รับ': orders, 'ทวนคำสั่ง': readback ? '✓' : '', 'HN': S.info.hn || '', 'ข้อความ ISBAR': text });
+    hideModal('reportModal');
+    logEvent({ kind: 'report', act: `${rpType === 'handover' ? 'ส่งเวร' : 'รายงานแพทย์'}แบบ ISBAR${to ? ': ' + to : ''}${readback ? ' (ทวนคำสั่งแล้ว)' : ''}`, meta: { reportId: id }, t });
+    if (orders) logEvent({ kind: 'order', act: `คำสั่งแพทย์: ${orders}`, t });
+    toast('บันทึกการรายงานแล้ว');
+  }
+
+  /* ================= สถานะหลัก ================= */
+  function mainButton() {
+    initAudio();
+    if (S.phase === 'idle') startCpr();
+    else if (S.phase === 'ended') askNewCase();
+    else askEnd();
+  }
+  function startCpr() {
+    const now = Date.now();
+    S.phase = 'cpr'; S.startMs = now; S.segs = [{ s: now, e: null }]; S.cycleNo = 1; S.cycleStartMs = now; resumed = true;
+    autoProc('bls', now);
+    const extra = [S.info.hn && `HN ${S.info.hn}`, S.info.ward].filter(Boolean).join(' · ');
+    logEvent({ kind: 'start', act: 'เริ่ม CPR' + (extra ? ` (${extra})` : ''), patch: { cpr: true }, t: now });
+    document.getElementById('secAssess').open = false; document.getElementById('secProcess').open = false;
+    Metro.start(); keepAwake(); speakThai('เริ่มทำการ ซีพีอา');
+  }
+  let chk = { pulse: null, rhythm: null };
+  function openCheck(auto) {
+    if (S.phase !== 'cpr') return;
+    initAudio();
+    S.phase = 'check'; S.checkStartMs = Date.now(); chk = { pulse: null, rhythm: null };
+    Metro.stop(); save(); renderAll(); renderCheck(); showModal('checkModal');
+    speakThai(auto ? 'ครบ 2 นาที กรุณาคลำชีพจร และประเมินคลื่นไฟฟ้าหัวใจ' : 'หยุดกด คลำชีพจร และประเมินคลื่นไฟฟ้าหัวใจ');
+    if (auto) vibrate([250, 120, 250]);
+  }
+  function commitCheck(action) {
+    if (S.phase !== 'check') { hideModal('checkModal'); return; }
+    const now = Date.now(), t0 = S.checkStartMs, dur = now - t0, sec = Math.round(dur / 1000), cyc = S.cycleNo;
+    const rhythm = chk.rhythm, pulse = action === 'rosc' && !chk.pulse ? 'yes' : chk.pulse;
+    S.checkStartMs = null;
+    const pulseTxt = pulse === 'yes' ? 'มีชีพจร' : pulse === 'no' ? 'ไม่มีชีพจร' : 'ไม่ระบุชีพจร';
+    if (rhythm) autoProc('acls', t0);
+    logEvent({ kind: 'check', act: `ประเมินรอบ ${cyc}: ${pulseTxt} (หยุดกด ${sec} วินาที)`, text: `ประเมินรอบ ${cyc}: ${pulseTxt}${rhythm ? ', EKG ' + rhythm : ''} (หยุดกด ${sec} วินาที)`, patch: rhythm ? { ecg: rhythm } : null, meta: { pulse, rhythm, dur }, t: t0 });
+    hideModal('checkModal');
+    if (action === 'rosc') { doRosc(); return; }
+    if (action === 'shock') { autoProc('acls', now); logEvent({ kind: 'shock', act: `Shock ${S.shockJ}J`, meta: { j: S.shockJ } }); }
+    resumeCpr(action, rhythm);
+  }
+  function resumeCpr(action, rhythm) {
+    S.phase = 'cpr'; S.cycleNo++; S.cycleStartMs = Date.now(); save(); Metro.start(); renderAll();
+    if (action === 'shock') speakThai('ช็อกแล้ว กดหน้าอกต่อทันที');
+    else if ((rhythm === 'PEA' || rhythm === 'Asystole') && !lastAdr()) speakThai('กดหน้าอกต่อ และพิจารณาให้ยาอะดรีนาลีนโดยเร็ว');
+    else speakThai('กดหน้าอกต่อทันที');
+  }
+  function doRosc() {
+    const now = Date.now(); Metro.stop(); closeSeg(now);
+    S.phase = 'rosc'; S.checkStartMs = null;
+    logEvent({ kind: 'rosc', act: 'ROSC: มีชีพจร', t: now });
+    hideModal('checkModal'); speakThai('พบชีพจร ยุติการทำ ซีพีอา');
+  }
+  function reArrest() {
+    const now = Date.now(); S.phase = 'cpr'; S.segs.push({ s: now, e: null }); S.cycleNo++; S.cycleStartMs = now;
+    logEvent({ kind: 'rearrest', act: 'หัวใจหยุดเต้นซ้ำ เริ่ม CPR ใหม่', patch: { cpr: true }, t: now });
+    Metro.start(); keepAwake(); speakThai('หัวใจหยุดเต้นซ้ำ เริ่มทำการ ซีพีอา');
+  }
+  function roscButton() {
+    if (!requireLive()) return;
+    if (S.phase === 'rosc') { reArrest(); return; }
+    if (S.phase === 'check') { commitCheck('rosc'); return; }
+    Swal.fire({ title: 'บันทึก ROSC?', text: 'ผู้ป่วยกลับมามีชีพจร ระบบจะหยุดเคาะและหยุดนับเวลา CPR', icon: 'question', showCancelButton: true, confirmButtonText: 'บันทึก ROSC', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#0d6efd' })
+      .then(r => { if (r.isConfirmed) doRosc(); });
+  }
+  async function askEnd() {
+    const opts = {}; if (S.phase === 'rosc') opts.rosc = OUT.rosc; opts.term = OUT.term; opts.transfer = OUT.transfer;
+    const { value: out } = await Swal.fire({ title: 'ยืนยันยุติ CPR?', text: 'เลือกผลลัพธ์', icon: 'warning', input: 'radio', inputOptions: opts, inputValue: S.phase === 'rosc' ? 'rosc' : 'term',
+      showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d33', inputValidator: v => !v && 'เลือกผลลัพธ์ก่อน' });
+    if (!out) return;
+    const now = Date.now(); Metro.stop(); closeSeg(now);
+    S.checkStartMs = null; hideModal('checkModal');
+    S.phase = 'ended'; S.endMs = now; S.outcome = out;
+    logEvent({ kind: 'end', act: `ยุติ CPR: ${OUT[out]} (เวลา CPR รวม ${mmss(cprMs())})`, meta: { out }, t: now });
+    releaseWake(); speakThai('ยุติการทำ ซีพีอา');
+    setTimeout(() => showSummaryModal('sum'), 400);
+  }
+  function askNewCase() {
+    const unsent = Q.length ? `ยังมี ${Q.length} รายการรอส่งเข้าชีต ระบบจะส่งต่อให้เอง ` : '';
+    Swal.fire({ title: 'เริ่มเคสใหม่?', text: unsent + 'หน้าจอจะถูกล้าง ข้อมูลที่ส่งเข้าชีตแล้วยังอยู่ครบ', icon: 'warning', showCancelButton: true, confirmButtonText: 'เริ่มเคสใหม่', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d33' })
+      .then(r => { if (r.isConfirmed) newCase(); });
+  }
+  function newCase() {
+    flushPendingSync();
+    Metro.stop(); releaseWake();
+    ['checkModal', 'summaryModal', 'settingsModal'].forEach(hideModal);
+    S = blank(); resumed = true; save(); fillPatient(); fillIsbar();
+    document.getElementById('secAssess').open = true; document.getElementById('secProcess').open = true;
+    renderAll(); toast('เริ่มเคสใหม่แล้ว');
+  }
+
+  /* ================= ปุ่มบันทึกทางคลินิก ================= */
+  function saveRhythm(r) {
+    if (!r || !requireLive()) return;
+    const t = readTime('rhTime'); if (t == null) return;
+    autoProc('acls', t);
+    logEvent({ kind: 'rhythm', text: `EKG: ${r}`, patch: { ecg: r }, meta: { rhythm: r }, t });
+    hideModal('rhythmModal'); toast('บันทึก ' + r);
+  }
+  function saveShock(j) {
+    if (!(j > 0) || !requireLive()) return;
+    const t = readTime('shTime'); if (t == null) return;
+    S.shockJ = j; hideModal('shockModal');
+    autoProc('acls', t);
+    logEvent({ kind: 'shock', act: `Shock ${j}J`, meta: { j }, t });
+    if (S.phase === 'cpr' && Date.now() - t < 60000) { S.cycleNo++; S.cycleStartMs = Date.now(); save(); Metro.start(); renderAll(); speakThai('ช็อกแล้ว กดหน้าอกต่อทันที'); }
+  }
+  function giveAdrenaline() {
+    if (!requireLive()) return;
+    const route = S.route || 'IV';
+    Swal.fire({ title: 'ยืนยันการให้ยา?', text: `Adrenaline 1 mg ${route}`, icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก' }).then(res => {
+      if (!res.isConfirmed) return;
+      recordMed(DRUGS[0], 'Adrenaline', '1 mg', route, Date.now());
+    });
+  }
+  function recordMed(drug, name, dose, route, t) {
+    const label = `${name} ${dose} ${route}`;
+    const routeSpeech = { IV: 'ไอวี', IO: 'ไอโอ', ETT: 'ทางท่อช่วยหายใจ' }[route] || '';
+    speakThai(`${drug.th || name} ${doseSpeech(dose)} ${routeSpeech} เวลา ${getThaiTimeForSpeech(t)} ครับ`);
+    const kind = drug.key === 'adr' ? 'adr' : drug.key === 'amio' ? 'amio' : 'drug';
+    logEvent({ kind, act: label, meta: { key: drug.key, name, dose, route }, t });
+    toast('บันทึก ' + label);
+  }
+
+  /* ---- หน้าต่างยา ---- */
+  let md = { key: null, dose: '' };
+  function resetMed() {
+    md = { key: null, dose: '' };
+    document.getElementById('doseCustom').value = ''; document.getElementById('drugNameCustom').value = '';
+    document.getElementById('medTime').value = hhmm(Date.now());
+    document.getElementById('medErr').hidden = true;
+    renderMed();
+  }
+  function selectDrug(key) {
+    const d = DRUGS.find(x => x.key === key); md.key = key;
+    md.dose = key === 'amio' ? (amioCount() === 0 ? '300 mg' : '150 mg') : (d.doses[0] || '');
+    document.getElementById('doseCustom').value = ''; document.getElementById('doseUnit').value = d.unit;
+    document.getElementById('medErr').hidden = true;
+    renderMed();
+    if (d.custom) setTimeout(() => document.getElementById('drugNameCustom').focus(), 50);
+  }
+  function medValues() {
+    const d = DRUGS.find(x => x.key === md.key); if (!d) return null;
+    const c = document.getElementById('doseCustom').value.trim(), unit = document.getElementById('doseUnit').value;
+    const dose = c ? (/[a-zA-Zก-๙]/.test(c) ? c : `${c} ${unit}`) : md.dose;
+    const name = d.custom ? document.getElementById('drugNameCustom').value.trim() : d.name;
+    return { d, name, dose, route: S.route || 'IV' };
+  }
+  function renderMed() {
+    const n = amioCount();
+    document.getElementById('drugGrid').innerHTML = DRUGS.map(d => {
+      const hint = d.key === 'amio' ? (n === 0 ? 'ครั้งแรก 300 mg' : `ให้แล้ว ${n} ครั้ง`) : d.key === 'adr' ? `ให้แล้ว ${evOf('adr').length} ครั้ง` : (d.doses.slice(0, 2).join(' · ') || 'ระบุชื่อเอง');
+      return `<button type="button" class="btn btn-outline-dark drug-btn${md.key === d.key ? ' active' : ''}" data-drug="${d.key}">${esc(d.name)}<small>${esc(hint)}</small></button>`;
+    }).join('');
+    const d = DRUGS.find(x => x.key === md.key);
+    document.getElementById('drugDetail').hidden = !d;
+    document.getElementById('medSave').disabled = !d;
+    if (!d) return;
+    const custom = document.getElementById('doseCustom').value.trim();
+    document.getElementById('drugNameWrap').hidden = !d.custom;
+    document.getElementById('doseChips').innerHTML = d.doses.length
+      ? d.doses.map(x => `<button type="button" class="btn btn-outline-warning text-dark fw-bold${!custom && md.dose === x ? ' active' : ''}" data-dose="${esc(x)}">${esc(x)}</button>`).join('')
+      : '<span class="small text-muted">ไม่มีตัวเลือก พิมพ์ขนาดยาในช่องด้านล่าง</span>';
+    document.getElementById('drugRef').textContent = d.ref || '';
+    document.querySelectorAll('#routeGroup [data-route]').forEach(b => b.classList.toggle('active', b.dataset.route === S.route));
+    const v = medValues();
+    document.getElementById('medPreview').textContent = `จะบันทึก: ${v.name || '(ระบุชื่อยา)'} ${v.dose || '(ระบุขนาด)'} ${v.route} เวลา ${document.getElementById('medTime').value || hhmm(Date.now())} น.`;
+  }
+  function saveMed() {
+    if (!requireLive()) return;
+    const v = medValues(), err = document.getElementById('medErr'); if (!v) return;
+    if (!v.name) { err.textContent = 'ระบุชื่อยาก่อนบันทึก'; err.hidden = false; return; }
+    if (!v.dose) { err.textContent = 'เลือกหรือพิมพ์ขนาดยาก่อนบันทึก'; err.hidden = false; return; }
+    const t = readTime('medTime', err); if (t == null) return;
+    hideModal('medsModal');
+    recordMed(v.d, v.name, v.dose, v.route, t);
+  }
+
+  async function promptDTX() {
+    if (!requireLive()) return;
+    const { value: dtx } = await Swal.fire({ title: 'บันทึก DTX', input: 'number', inputPlaceholder: 'ระบุค่า (mg%)', showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก' });
+    if (dtx) { speakThai(`ดี ที เอ็กซ์ ${dtx} มิลลิกรัมเปอร์เซ็นต์ เวลา ${getThaiTimeForSpeech()} ครับ`); logEvent({ kind: 'dtx', act: `DTX: ${dtx} mg%`, meta: { dtx } }); }
+  }
+  function saveVitals() {
+    if (!requireLive()) return;
+    const g = id => document.getElementById(id).value.trim();
+    const p = g('vsP'), rr = g('vsRr'), sbp = g('vsSbp'), dbp = g('vsDbp'), sp = g('vsSpo2'), et = g('vsEt');
+    if (!p && !rr && !sbp && !dbp && !sp && !et) { toast('กรอกอย่างน้อยหนึ่งค่า', 'warning'); return; }
+    const t = readTime('vsTime'); if (t == null) return;
+    const extra = [sp && `SpO2 ${sp}%`, et && `EtCO2 ${et} mmHg`].filter(Boolean).join(' ');
+    const text = 'V/S: ' + [p && `P ${p}`, rr && `RR ${rr}`, (sbp || dbp) && `BP ${sbp || '-'}/${dbp || '-'}`, extra].filter(Boolean).join(' ');
+    logEvent({ kind: 'vital', act: extra ? 'V/S: ' + extra : '', text, patch: { p, rr, sbp, dbp }, meta: { p, rr, sbp, dbp, sp, et }, t });
+    hideModal('vitalsModal'); toast('บันทึก V/S แล้ว');
+  }
+  async function promptCustom() {
+    if (!requireLive()) return;
+    const { value: act } = await Swal.fire({ title: 'กิจกรรมอื่นๆ', input: 'text', inputPlaceholder: 'ระบุ...', showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก' });
+    if (act) logEvent({ kind: 'note', act });
+  }
+  function checkCustomDept() {
+    const sel = document.getElementById('docDeptSelect').value, cust = document.getElementById('docDeptCustom');
+    if (sel === 'อื่นๆ') cust.classList.remove('d-none'); else cust.classList.add('d-none');
+  }
+  function saveDoctor() {
+    if (!requireLive()) return;
+    const t = readTime('docTime'); if (t == null) return;
+    const sel = document.getElementById('docDeptSelect').value;
+    const dept = sel === 'อื่นๆ' ? (document.getElementById('docDeptCustom').value || 'ไม่ระบุ') : sel;
+    const name = document.getElementById('docName').value || 'ไม่ระบุชื่อ';
+    S.docTime = hhmm(t);
+    if (!S.isbar.receiver || S.isbar.receiverAuto) {
+      S.isbar.receiver = name === 'ไม่ระบุชื่อ' ? `แพทย์ (${dept})` : `${name} (แพทย์ ${dept})`; S.isbar.receiverAuto = true;
+    }
+    logEvent({ kind: 'team', act: `แพทย์ (${dept}) มาถึง: ${name}`, meta: { role: 'doc' }, t });
+    hideModal('doctorModal');
+    setTimeout(() => {
+      Swal.fire({ title: 'แพทย์มาถึงแล้ว', text: 'เปิดแบบรายงาน ISBAR เพื่อรายงานแพทย์?', icon: 'info', showCancelButton: true, confirmButtonText: 'เปิด ISBAR', cancelButtonText: 'ภายหลัง', confirmButtonColor: '#198754' })
+        .then(r => { if (r.isConfirmed) openIsbar(); });
+    }, 350);
+  }
+  function saveAnes() {
+    if (!requireLive()) return;
+    const t = readTime('anesTime'); if (t == null) return;
+    const name = document.getElementById('anesName').value || 'ไม่ระบุชื่อ';
+    S.anesTime = hhmm(t);
+    logEvent({ kind: 'team', act: `วิสัญญีมาถึง: ${name}`, meta: { role: 'anes' }, t });
+    hideModal('anesModal');
+  }
+  function recordRelativeCall() {
+    if (!requireLive()) return;
+    Swal.fire({ title: 'ยืนยันการบันทึก', text: 'บันทึกเวลาโทรแจ้งญาติ ณ ขณะนี้', icon: 'question', showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'ยกเลิก' }).then(res => {
+      if (res.isConfirmed) { logEvent({ kind: 'team', act: 'โทรแจ้งญาติ', meta: { role: 'relative' } }); toast('บันทึกแล้ว'); }
+    });
+  }
+  function savePatient() {
+    const g = id => document.getElementById(id).value.trim();
+    S.info = { hn: g('ptHn'), ward: g('ptWard'), leader: g('ptLeader'), recorder: g('ptRecorder') };
+    save(); hideModal('patientModal'); fillIsbar();
+    if (isLive() && resumed) {
+      const txt = [S.info.hn && `HN ${S.info.hn}`, S.info.ward, S.info.leader && `ผู้นำทีม ${S.info.leader}`, S.info.recorder && `ผู้บันทึก ${S.info.recorder}`].filter(Boolean).join(' · ');
+      if (txt) logEvent({ kind: 'info', act: 'ข้อมูลผู้ป่วย: ' + txt });
+    }
+    renderAll(); toast('บันทึกข้อมูลแล้ว');
+  }
+  function fillPatient() { document.getElementById('ptHn').value = S.info.hn || ''; document.getElementById('ptWard').value = S.info.ward || ''; document.getElementById('ptLeader').value = S.info.leader || ''; document.getElementById('ptRecorder').value = S.info.recorder || ''; }
+  function toggleCause(key) {
+    let c; CAUSES.forEach(g => g[1].forEach(x => { if (x[0] === key) c = x; }));
+    const on = !S.causes[key]; S.causes[key] = on;
+    if (on && isLive() && resumed) logEvent({ kind: 'cause', act: `พิจารณา: ${c[1]} (${c[2]})`, meta: { key } });
+    else { save(); renderAll(); }
+  }
+
+  /* ================= แก้ไข / เพิ่ม / ลบแถว ================= */
+  let rwId = null, rwDelArmed = false, rwDelTimer = null;
+  function openRowModal(id) {
+    const r = id ? S.rows.find(x => x.id === id) : null; if (id && !r) return;
+    rwId = r ? r.id : null;
+    document.getElementById('rwTitle').textContent = r ? 'แก้ไขแถว CPR Record' : 'เพิ่มแถว CPR Record';
+    document.getElementById('rwTime').value = hhmm(r ? r.timeMs : Date.now());
+    document.getElementById('rwCpr').checked = r ? r.cpr : cprAt(Date.now());
+    document.getElementById('rwP').value = r ? r.p : '';
+    document.getElementById('rwRr').value = r ? r.rr : '';
+    document.getElementById('rwEcg').value = r ? r.ecg : '';
+    document.getElementById('rwSbp').value = r ? r.sbp : '';
+    document.getElementById('rwDbp').value = r ? r.dbp : '';
+    document.getElementById('rwActs').value = r ? r.acts.join('\n') : '';
+    document.getElementById('rwErr').hidden = true;
+    const del = document.getElementById('rwDel'); del.hidden = !r; disarmRowDel();
+    showModal('rowModal');
+  }
+  function disarmRowDel() { rwDelArmed = false; clearTimeout(rwDelTimer); const b = document.getElementById('rwDel'); b.innerHTML = '<i class="fa-solid fa-trash"></i> ลบแถว'; b.classList.replace('btn-danger', 'btn-outline-danger'); }
+  function saveRowModal() {
+    const g = id => document.getElementById(id).value.trim(), err = document.getElementById('rwErr');
+    const r = rwId ? S.rows.find(x => x.id === rwId) : null;
+    const t = timeFromInput(g('rwTime'), r ? r.timeMs : Date.now());
+    if (!timeOk(t, err)) return;
+    const vals = { cpr: document.getElementById('rwCpr').checked, p: g('rwP'), rr: g('rwRr'), ecg: g('rwEcg'), sbp: g('rwSbp'), dbp: g('rwDbp'),
+      acts: document.getElementById('rwActs').value.split('\n').map(s => s.trim()).filter(Boolean) };
+    if (!r) {
+      const row = makeRow(t, vals.cpr); Object.assign(row, vals); S.rows.push(row);
+      syncRow(row);
+      save(); hideModal('rowModal'); renderAll(); toast('เพิ่มแถวแล้ว'); return;
+    }
+    // ปรับเหตุการณ์ในแถวให้ตรงกับรายการกิจกรรมที่แก้ไข
+    const oldActs = r.acts.slice();
+    if (oldActs.length === vals.acts.length) {
+      S.events.forEach(e => { if (e.rowId === r.id && e.act) { const i = oldActs.indexOf(e.act); if (i >= 0 && vals.acts[i] !== oldActs[i]) { e.act = vals.acts[i]; e.text = vals.acts[i]; } } });
+    } else {
+      S.events = S.events.filter(e => !(e.rowId === r.id && e.act && !vals.acts.includes(e.act) && !KEEP_KINDS[e.kind]));
+    }
+    Object.assign(r, vals);
+    if (hhmm(t) !== r.timeStr || minuteKey(t) !== minuteKey(r.timeMs)) {
+      const delta = t - r.timeMs;
+      r.timeMs = t; r.timeStr = hhmm(t);
+      S.events.forEach(e => { if (e.rowId === r.id) e.t += delta; });
+      S.events.sort((a, b) => a.t - b.t || a.id - b.id);
+    }
+    syncRow(r);
+    save(); hideModal('rowModal'); renderAll(); toast('แก้ไขแล้ว');
+  }
+  function deleteRowNow(id) {
+    S.rows = S.rows.filter(x => x.id !== id);
+    S.events = S.events.filter(e => e.rowId !== id || KEEP_KINDS[e.kind]);
+    killRowId(id); save(); renderAll(); toast('ลบแถวแล้ว');
+  }
+  function deleteRow(id) {
+    Swal.fire({ title: 'ลบแถวนี้?', text: 'ข้อมูลแถวนี้จะถูกลบออกจากชีตด้วย', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#d33' })
+      .then(r => { if (r.isConfirmed) deleteRowNow(id); });
+  }
+  function toggleRowCpr(id, on) { const r = S.rows.find(x => x.id === id); if (!r) return; r.cpr = on; syncRow(r); save(); }
+
+  /* ================= การแสดงผล ================= */
+  function renderAll() {
+    const p = S.phase, live = isLive();
+    const btn = document.getElementById('btnStartCpr');
+    btn.className = 'btn btn-start-cpr w-100 mt-3 ' + (p === 'idle' ? 'btn-success text-white' : p === 'ended' ? 'btn-outline-success' : 'btn-secondary text-white');
+    btn.innerHTML = p === 'idle' ? '<i class="fa-solid fa-play"></i> START CPR' : p === 'ended' ? '<i class="fa-solid fa-rotate"></i> เริ่มเคสใหม่' : '<i class="fa-solid fa-power-off"></i> ยุติ CPR';
+    document.querySelectorAll('.live-btn').forEach(b => { b.disabled = !(live && resumed); });
+    document.getElementById('btnPauseCycle').disabled = !(p === 'cpr' && resumed);
+    document.getElementById('btnPlayAdr').disabled = !((p === 'cpr' || p === 'check') && resumed);
+    document.getElementById('roscLabel').textContent = p === 'rosc' ? 'หยุดเต้นซ้ำ' : 'ROSC';
+    document.getElementById('cycleCount').textContent = S.cycleNo;
+    document.getElementById('adrCount').textContent = evOf('adr').length;
+    document.getElementById('shockSmall').textContent = S.shockJ + 'J';
+    document.getElementById('tubeSmall').textContent = S.proc.ett ? `${S.proc.ett.route} ${S.proc.ett.size}${S.proc.ett.depth ? '/' + S.proc.ett.depth : ''}` : 'Oral / Nasal';
+    document.getElementById('totalLabel').textContent = p === 'rosc' ? 'เวลา CPR ทั้งหมด (ROSC)' : 'เวลา CPR ทั้งหมด';
+    document.getElementById('totalTimeDisplay').classList.toggle('rosc', p === 'rosc');
+    const info = [S.startMs && `เริ่ม ${hhmm(S.startMs)}`, S.info.hn && `HN ${S.info.hn}`, S.info.ward].filter(Boolean).join(' · ');
+    document.getElementById('caseLine').textContent = p === 'idle' ? (info || 'พร้อมเริ่ม') : p === 'ended' ? `${info} · ${OUT[S.outcome] || 'ปิดเคสแล้ว'}` : info;
+    document.querySelectorAll('#causesBody [data-cause]').forEach(b => b.classList.toggle('active', !!S.causes[b.dataset.cause]));
+    document.getElementById('shockNote').hidden = p !== 'cpr';
+    renderAssess(); renderProc(); renderIsbar(); renderMetro(); renderTable(); renderSync(); tick();
+  }
+  function renderTable() {
+    const tb = document.getElementById('logTableBody');
+    if (!S.rows.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="8">ยังไม่มีรายการ กด START CPR แล้วทุกปุ่มที่บันทึกจะแสดงที่นี่ตามเวลาจริง และส่งเข้าชีตอัตโนมัติ</td></tr>'; return; }
+    const rows = S.rows.slice().sort((a, b) => b.timeMs - a.timeMs);
+    tb.innerHTML = rows.map(r => `<tr id="${esc(r.id)}">
+      <td class="fw-bold">${esc(r.timeStr)}<span class="t-plus">${tPlus(r.timeMs)}</span></td>
+      <td class="text-center"><input class="form-check-input cpr-check" type="checkbox" data-id="${esc(r.id)}"${r.cpr ? ' checked' : ''} aria-label="CPR เวลา ${esc(r.timeStr)}"></td>
+      <td>${esc(r.p || '-')}</td><td>${esc(r.rr || '-')}</td><td>${esc(r.ecg || '-')}</td><td>${esc(rowBp(r) || '-')}</td>
+      <td class="acts">${r.acts.length ? r.acts.map(esc).join('<br>') : '-'}</td>
+      <td class="text-center"><button class="btn btn-sm btn-outline-success me-1" onclick="openRowModal('${esc(r.id)}')" aria-label="แก้ไข"><i class="fa-solid fa-pen"></i></button><button class="btn btn-sm btn-outline-danger" onclick="deleteRow('${esc(r.id)}')" aria-label="ลบ"><i class="fa-solid fa-trash"></i></button></td>
+    </tr>`).join('');
+  }
+  function renderCheck() {
+    document.querySelectorAll('#pulseChoice [data-pulse]').forEach(b => b.classList.toggle('active', b.dataset.pulse === chk.pulse));
+    document.querySelectorAll('#rhythmChoice [data-rh]').forEach(b => b.classList.toggle('active', b.dataset.rh === chk.rhythm));
+    document.querySelectorAll('#checkJ [data-j]').forEach(b => b.classList.toggle('active', +b.dataset.j === S.shockJ));
+    const shockable = !!SHOCKABLE[chk.rhythm];
+    document.getElementById('cShock').innerHTML = `<i class="fa-solid fa-bolt"></i> Shock ${S.shockJ}J แล้ว CPR ต่อ`;
+    document.getElementById('cShock').classList.toggle('btn-suggest', shockable);
+    document.getElementById('cRosc').classList.toggle('btn-suggest', chk.pulse === 'yes');
+    let h = 'เลือกผลคลำชีพจรและ Rhythm แล้วกดปุ่มด้านล่าง หรือกด CPR ต่อได้ทันทีถ้ายังไม่แน่ใจ';
+    if (shockable) h = evOf('shock').length >= 2 ? 'Rhythm ที่ช็อกได้ · ถ้ายังเป็น VF/pVT หลังช็อกหลายครั้ง พิจารณา Amiodarone หรือ Lidocaine' : 'Rhythm ที่ช็อกได้ · ช็อกแล้วกดหน้าอกต่อทันที';
+    else if (chk.rhythm === 'PEA' || chk.rhythm === 'Asystole') h = lastAdr() ? 'Rhythm ที่ช็อกไม่ได้ · CPR ต่อ ให้ Adrenaline ทุก 3–5 นาที และค้นหาสาเหตุ 5H 5T' : 'Rhythm ที่ช็อกไม่ได้ · CPR ต่อ และให้ Adrenaline โดยเร็ว';
+    else if (chk.pulse === 'yes') h = 'มีชีพจร · ถ้า Rhythm สม่ำเสมอ กด มีชีพจร (ROSC)';
+    document.getElementById('checkHint').textContent = h;
+  }
+  function once(k, fn) { if (S.flags[k]) return; S.flags[k] = 1; save(); fn(); }
+  function setTimer(el, text, cls) { el.textContent = text; el.classList.remove('warn', 'alert-time', 'ok-time', 'text-secondary'); if (cls) el.classList.add(cls); }
+  function setBar(el, pct, cls) { el.style.width = Math.max(0, Math.min(100, pct)) + '%'; el.classList.remove('bg-warning', 'bg-danger', 'bg-primary'); if (cls) el.classList.add(cls); }
+  function tick() {
+    const now = Date.now(), p = S.phase;
+    document.getElementById('currentDate').innerText = new Date(now).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('currentTime').innerText = hms(now);
+    document.getElementById('totalTimeDisplay').innerText = mmss(cprMs());
+    if (now - ibRenderedAt > 5000 && document.getElementById('secIsbar').open) renderIsbar();
+    const cT = document.getElementById('cycleTimeDisplay'), cB = document.getElementById('cycleBar'), cH = document.getElementById('cycleHint'), pauseBtn = document.getElementById('btnPauseCycle');
+    pauseBtn.classList.remove('due-pulse');
+    if (p === 'idle') { setTimer(cT, '02:00'); setBar(cB, 0); cH.textContent = 'ประเมินชีพจรทุก 2 นาที'; }
+    else if (p === 'cpr') {
+      const cyc = now - S.cycleStartMs, rem = CYCLE_MS - cyc;
+      if (rem > 0) { setTimer(cT, mmss(rem + 999), rem <= 15000 ? 'warn' : null); setBar(cB, cyc / CYCLE_MS * 100, rem <= 15000 ? 'bg-warning' : null); }
+      else { setTimer(cT, '+' + mmss(-rem), 'alert-time'); setBar(cB, 100, 'bg-danger'); pauseBtn.classList.add('due-pulse'); }
+      cH.textContent = rem > 15000 ? 'กดลึก 5–6 ซม. ปล่อยหน้าอกคืนตัวสุด' : rem > 0 ? 'เตรียมเปลี่ยนคนกด และเตรียมประเมิน' : 'ครบ 2 นาทีแล้ว กด พัก / ประเมิน';
+      if (resumed) {
+        if (cyc >= 105000 && cyc < CYCLE_MS) once(`c${S.cycleNo}a`, () => speakThai('อีกสิบห้าวินาที ครบสองนาที เตรียมเปลี่ยนคนกดหน้าอก'));
+        if (cyc >= CYCLE_MS) once(`c${S.cycleNo}b`, () => openCheck(true));
+      }
+    } else if (p === 'check') {
+      const ck = now - S.checkStartMs, s = Math.floor(ck / 1000);
+      setTimer(cT, 'หยุด ' + mmss(ck), ck > 10000 ? 'alert-time' : 'warn'); setBar(cB, ck / 10000 * 100, ck > 10000 ? 'bg-danger' : 'bg-warning');
+      cH.textContent = ck > 10000 ? 'หยุดกดเกิน 10 วินาที' : 'กำลังประเมินชีพจร';
+      const ct = document.getElementById('checkTimer'); ct.textContent = s; ct.classList.toggle('over', ck > 10000);
+      setBar(document.getElementById('checkBar'), ck / 10000 * 100, ck > 10000 ? 'bg-danger' : 'bg-warning');
+      if (resumed && ck >= 10000) once(`k${S.checkStartMs}`, () => speakThai('ครบสิบวินาที กดหน้าอกต่อทันที'));
+    } else if (p === 'rosc') {
+      const r = evOf('rosc').pop();
+      setTimer(cT, 'ROSC', 'ok-time'); setBar(cB, 100, 'bg-primary');
+      cH.textContent = r ? `มีชีพจรเมื่อ ${hhmm(r.t)} (${tPlus(r.t)}) · ผ่านมา ${mmss(now - r.t)}` : '';
+    } else { setTimer(cT, 'จบ', 'ok-time'); setBar(cB, 100, 'bg-primary'); cH.textContent = OUT[S.outcome] || ''; }
+
+    const aT = document.getElementById('adrTimeDisplay'), aB = document.getElementById('adrBar'), aH = document.getElementById('adrHint'), le = lastAdr();
+    if (!le) { setTimer(aT, '03:00', 'text-secondary'); setBar(aB, 0); aH.textContent = p === 'idle' ? 'ให้ซ้ำทุก 3–5 นาที' : 'ยังไม่ได้ให้'; }
+    else if (p === 'cpr' || p === 'check') {
+      const el = now - le.t, rem = 180000 - el;
+      if (rem > 0) { setTimer(aT, mmss(rem + 999)); setBar(aB, el / 180000 * 100); aH.textContent = `ให้ล่าสุด ${hhmm(le.t)} · ครบ 3 นาทีใน ${mmss(rem + 999)}`; }
+      else if (el < 300000) { setTimer(aT, '+' + mmss(-rem), 'warn'); setBar(aB, 100, 'bg-warning'); aH.textContent = 'ถึงช่วงให้ครั้งถัดไป (3–5 นาที)'; }
+      else { setTimer(aT, '+' + mmss(-rem), 'alert-time'); setBar(aB, 100, 'bg-danger'); aH.textContent = 'เกิน 5 นาทีหลังให้ครั้งล่าสุด'; }
+      if (resumed) {
+        if (el >= 180000 && el < 300000) once(`e${le.id}a`, () => { speakThai('ถึงเวลาพิจารณาให้ยาอะดรีนาลีน'); toast('Adrenaline Due! ครบ 3 นาทีแล้ว', 'info'); });
+        if (el >= 300000) once(`e${le.id}b`, () => speakThai('ครบห้านาที หลังให้ยาอะดรีนาลีนครั้งล่าสุด'));
+      }
+    } else { setTimer(aT, hhmm(le.t), 'text-secondary'); setBar(aB, 100); aH.textContent = 'เวลาที่ให้ครั้งล่าสุด'; }
+  }
+
+  /* ================= สรุปผล ================= */
+  function summarize() {
+    const adr = evOf('adr'), amio = evOf('amio'), shocks = evOf('shock'), checks = evOf('check');
+    const meds = S.events.filter(e => e.kind === 'adr' || e.kind === 'amio' || e.kind === 'drug');
+    const firstRow = S.rows.slice().sort((a, b) => a.timeMs - b.timeMs).find(r => r.ecg), rosc = evOf('rosc').pop();
+    const total = cprMs(), hands = checks.reduce((a, e) => a + (e.meta.dur || 0), 0);
+    const ccf = total > 30000 ? Math.max(0, Math.min(100, Math.round((total - hands) / total * 100))) : null;
+    const adrAvg = adr.length > 1 ? (adr[adr.length - 1].t - adr[0].t) / (adr.length - 1) : null;
+    const causes = []; CAUSES.forEach(g => g[1].forEach(c => { if (S.causes[c[0]]) causes.push(`${c[1]} (${c[2]})`); }));
+    const assess = ASSESS.filter(a => S.assess[a.key]).map(a => `${hhmm(S.assess[a.key].t)} ${assessText(a, S.assess[a.key])}`);
+    const proc = PROCS.map((p, i) => S.proc[p.key] ? `${i + 1}. ${procText(p, S.proc[p.key])}` : null).filter(Boolean);
+    let outcome = 'อยู่ระหว่าง CPR';
+    if (S.phase === 'ended') outcome = OUT[S.outcome] || 'ปิดเคส'; else if (S.phase === 'rosc') outcome = 'ROSC (ยังไม่ปิดเคส)'; else if (S.phase === 'idle') outcome = '-';
+    return { adr, amio, shocks, meds, firstEcg: firstRow ? firstRow.ecg : null, rosc, total, hands, ccf, adrAvg, causes, assess, proc, outcome };
+  }
+
+  /* ================= สรุปผล: ปริมาณยา + บันทึกหลัง CPR ================= */
+  const PF_COMP = ['Fracture rib', 'Difficult intubation', 'อื่นๆ'];
+  const PF_PROC = ['Cut down / Central line', 'Umbilical cath', 'อื่นๆ'];
+  const PF_UNITS = ['ER', 'ICU', 'วิสัญญี', '3/2', '3/3', '3/4', '3/5', 'OR', 'LR', 'NICU', '5/1', '5/2', '5/3', '5/4', '5/5', '7/1', '7/2', '7/3', '7/4', '7/5', '7/6', 'เวรเปล', 'อื่นๆ'];
+  const PER_AMP = { adr: { amt: 1, unit: 'mg' }, amio: { amt: 150, unit: 'mg' }, atro: { amt: 0.6, unit: 'mg' } };
+  const fmtNum = n => String(Math.round(n * 100) / 100);
+  function drugLine(d) { return `${d.name} ${d.count} ครั้ง ${d.numeric ? 'รวม ' + d.total : '(' + d.total + ')'}`; }
+  function drugTotals() {
+    const map = new Map();
+    S.events.filter(e => e.kind === 'adr' || e.kind === 'amio' || e.kind === 'drug').forEach(e => {
+      const name = (e.meta && e.meta.name) || e.text, key = (e.meta && e.meta.key) || 'other';
+      let rest = e.text; if (e.meta && e.meta.name && rest.indexOf(e.meta.name) === 0) rest = rest.slice(e.meta.name.length);
+      rest = rest.replace(/\s+(IV|IO|ETT)\s*$/, '').trim();
+      const g = map.get(name) || { name, key, count: 0, sums: {}, other: [] };
+      g.count++;
+      const m = rest.match(/(\d+(?:\.\d+)?)\s*(ml\/hr|mcg|mEq|mg|ml|amp|unit|g)(?![a-z])/i);
+      if (m) {
+        g.sums[m[2]] = (g.sums[m[2]] || 0) + parseFloat(m[1]);
+        const pm = rest.match(/\((\d+(?:\.\d+)?)\s*ml\)/);
+        if (m[2] === 'amp' && pm) g.sums.mlInAmp = (g.sums.mlInAmp || 0) + parseFloat(pm[1]);
+      } else if (rest && !g.other.includes(rest)) g.other.push(rest);
+      map.set(name, g);
+    });
+    return Array.from(map.values()).map(g => {
+      const parts = ['mg', 'g', 'mcg', 'amp', 'ml', 'mEq', 'unit', 'ml/hr'].filter(u => g.sums[u] != null).map(u => `${fmtNum(g.sums[u])} ${u}${u === 'amp' && g.sums.mlInAmp ? ` (${fmtNum(g.sums.mlInAmp)} ml)` : ''}`);
+      const a = PER_AMP[g.key]; if (a && g.sums[a.unit] != null) parts.push(`≈ ${fmtNum(g.sums[a.unit] / a.amt)} amp`);
+      return { name: g.name, count: g.count, numeric: parts.length > 0, total: parts.concat(g.other).join(' ') || '-' };
+    });
+  }
+  function gcsText(p) {
+    if (!p.gcsE && !p.gcsV && !p.gcsM) return '';
+    const code = `E${p.gcsE || '-'}V${p.gcsV || '-'}M${p.gcsM || '-'}`;
+    if (!p.gcsE || !p.gcsV || !p.gcsM) return code;
+    const sum = (+p.gcsE) + (p.gcsV === 'T' ? 0 : +p.gcsV) + (+p.gcsM);
+    return `${code} (${sum}${p.gcsV === 'T' ? 'T' : ''} คะแนน)`;
+  }
+  function listWithOther(arr, other) { return arr.map(x => x === 'อื่นๆ' ? (other ? other : 'อื่นๆ') : x); }
+  function postLines() {
+    const p = S.post, L = { comp: [], proc: [], outcome: [], units: [], defib: '' };
+    L.comp = listWithOther(p.comp, p.compOther);
+    L.proc = listWithOther(p.proc, p.procOther);
+    if (p.stopT) L.outcome.push(`ยุติ CPR เวลา ${hhmm(p.stopT)} น.`);
+    if (p.conscious) L.outcome.push(`มีสติ รู้สึกตัว${gcsText(p) ? ' GCS ' + gcsText(p) : ''}`);
+    if (p.pulse) L.outcome.push(`มี Pulse / HR${p.pulseRate ? ` ${p.pulseRate} ครั้ง/นาที` : ''}`);
+    if (p.bp) L.outcome.push(`วัด BP ได้${p.sbp || p.dbp ? ` ${p.sbp || '-'}/${p.dbp || '-'} mmHg` : ''}`);
+    if (p.transfer) L.outcome.push(`ย้ายเข้า ${p.transferTo === 'อื่นๆ' ? (p.transferOther || 'อื่นๆ') : (p.transferTo || '-')}`);
+    if (p.resp) L.outcome.push('On respirator');
+    if (p.dead) L.outcome.push(`Dead${p.deadT ? ` เวลา ${hhmm(p.deadT)} น.` : ''}`);
+    L.units = listWithOther(p.units, p.unitsOther);
+    L.defib = p.defibFrom;
+    return L;
+  }
+  function chipGroup(id, group, items) {
+    document.getElementById(id).innerHTML = items.map((x, i) => `<div class="form-check"><input type="checkbox" class="form-check-input" id="${id}_${i}" data-group="${group}" value="${esc(x)}"><label class="form-check-label" for="${id}_${i}">${esc(x)}</label></div>`).join('');
+  }
+  function buildPostForm() {
+    chipGroup('pfComp', 'comp', PF_COMP); chipGroup('pfProc', 'proc', PF_PROC); chipGroup('pfUnits', 'units', PF_UNITS);
+    document.getElementById('wardList').innerHTML = PF_UNITS.filter(x => x !== 'อื่นๆ' && x !== 'เวรเปล').map(x => `<option value="${esc(x)}">`).join('');
+  }
+  function cprStopDefault() { const seg = S.segs[S.segs.length - 1]; return seg && seg.e ? seg.e : null; }
+  function fillPost() {
+    const p = S.post;
+    if (!p.stopT && cprStopDefault()) p.stopT = cprStopDefault();
+    document.querySelectorAll('#summaryModal [data-group]').forEach(c => { c.checked = (p[c.dataset.group] || []).includes(c.value); });
+    document.querySelectorAll('#summaryModal [data-pf]').forEach(el => {
+      const k = el.dataset.pf;
+      if (k === 'recorder') el.value = S.info.recorder || '';
+      else if (el.type === 'checkbox') el.checked = !!p[k];
+      else if (el.type === 'time') el.value = p[k] ? hhmm(p[k]) : '';
+      else el.value = p[k] || '';
+    });
+    renderPostVis();
+  }
+  function renderPostVis() {
+    const p = S.post, $ = id => document.getElementById(id);
+    $('pfCompOther').hidden = !p.comp.includes('อื่นๆ');
+    $('pfProcOther').hidden = !p.proc.includes('อื่นๆ');
+    $('pfUnitsOther').hidden = !p.units.includes('อื่นๆ');
+    $('pfGcsWrap').hidden = !p.conscious; $('pfGcsText').textContent = gcsText(p);
+    $('pfPulseWrap').hidden = !p.pulse; $('pfBpWrap').hidden = !p.bp;
+    $('pfTransferWrap').hidden = !p.transfer; $('pfTransferOther').hidden = p.transferTo !== 'อื่นๆ';
+    $('pfDeadWrap').hidden = !p.dead;
+  }
+  let postTimer = null;
+  function onPostInput(e) {
+    const t = e.target, p = S.post;
+    if (t.dataset.group) {
+      const arr = p[t.dataset.group], i = arr.indexOf(t.value);
+      if (t.checked && i < 0) arr.push(t.value); if (!t.checked && i >= 0) arr.splice(i, 1);
+    } else if (t.dataset.pf) {
+      const k = t.dataset.pf;
+      if (k === 'recorder') { S.info.recorder = t.value; document.getElementById('ptRecorder').value = t.value; }
+      else if (t.type === 'checkbox') {
+        p[k] = t.checked;
+        const rows = S.rows.slice().sort((a, b) => b.timeMs - a.timeMs);
+        if (k === 'pulse' && t.checked && !p.pulseRate) { const r = rows.find(x => +x.p > 0); if (r) { p.pulseRate = r.p; document.getElementById('pfPulseRate').value = r.p; } }
+        if (k === 'bp' && t.checked && !p.sbp && !p.dbp) { const r = rows.find(x => x.sbp || x.dbp); if (r) { p.sbp = r.sbp; p.dbp = r.dbp; document.getElementById('pfSbp').value = r.sbp; document.getElementById('pfDbp').value = r.dbp; } }
+        if (k === 'dead' && t.checked && !p.deadT) { p.deadT = p.stopT || Date.now(); document.getElementById('pfDeadT').value = hhmm(p.deadT); }
+      }
+      else if (t.type === 'time') p[k] = t.value ? timeFromInput(t.value, p[k] || S.endMs || Date.now()) : null;
+      else p[k] = t.value;
+    } else return;
+    renderPostVis(); save();
+    clearTimeout(postTimer); postTimer = setTimeout(syncPost, 1500);
+  }
+  function postHasData() { const L = postLines(); return !!(L.comp.length || L.proc.length || L.outcome.length || L.units.length || L.defib); }
+  function postText(sep) {
+    const L = postLines(), out = [];
+    if (L.comp.length) out.push('ภาวะแทรกซ้อนระหว่าง CPR: ' + L.comp.join(', '));
+    if (L.proc.length) out.push('หัตถการเพิ่มเติม: ' + L.proc.join(', '));
+    if (L.outcome.length) out.push('ประเมินผล CPR: ' + L.outcome.join(', '));
+    if (L.units.length) out.push('หน่วยงานที่มาช่วย: ' + L.units.join(', '));
+    if (L.defib) out.push('Defibrillator มาจาก: ' + L.defib);
+    if (S.info.recorder) out.push('ผู้บันทึก: ' + S.info.recorder);
+    return out.join(sep || '\n');
+  }
+  function syncPost() { postTimer = null; syncCase(); }
+
+
+  /* ================= แบบประเมินการช่วยฟื้นคืนชีพ ================= */
+  const AUDIT = [
+    { key: 'team', title: 'การตามทีม', items: [
+      ['t1', 'ใช้รหัส 007'], ['t2', 'ตามแพทย์ 1st call ได้'], ['t3', 'ตามแพทย์ 2nd call ได้ (แพทย์ ER / แพทย์ consult)'],
+      ['t4', 'แพทย์มาภายใน 8 นาที'], ['t5', 'วิสัญญีมาภายใน 8 นาที'], ['t6', 'ทีมจากตึกเดียวกัน (หรือตาม flow) มาช่วย'], ['t7', 'อื่นๆ', true]] },
+    { key: 'equip', title: 'ยาและอุปกรณ์', items: [
+      ['e1', 'Laryngoscope ขนาดเหมาะสม'], ['e2', 'Laryngoscope ไฟสว่าง'], ['e3', 'เตรียมท่อช่วยหายใจขนาดเหมาะสม'], ['e4', 'Guide wire ขนาดเหมาะสม'],
+      ['e5', 'Suction พร้อมใช้'], ['e6', 'Self-inflating bag พร้อมใช้'], ['e7', 'มีเครื่อง Defibrillator พร้อมใช้'],
+      ['e8', 'มียาอยู่ในรถ Emergency ครบตาม Guideline (ตามแบบรถ A, B)'], ['e9', 'อื่นๆ', true]] },
+    { key: 'cpr', title: 'การปฏิบัติการ CPR', items: [
+      ['c1', 'ช่วยหายใจได้ประสิทธิภาพ: อกขยายดี'],
+      ['c2', 'ช่วยหายใจได้ประสิทธิภาพ: อัตราถูกต้อง (30:2 เมื่อยังไม่ใส่ ET-tube หรือ 10 ครั้ง/นาที เมื่อใส่ ET-tube)'],
+      ['c3', 'การนวดหัวใจได้อย่างมีประสิทธิภาพ (ตำแหน่ง / ความลึก / อัตรา)'],
+      ['c4', 'การช่วยหายใจและการนวดหัวใจสัมพันธ์กัน (30:2) เมื่อยังไม่ใส่ท่อช่วยหายใจ'],
+      ['c5', 'เตรียมใช้เครื่อง Defibrillator ถูกต้อง ด้วยขนาดกำลังไฟฟ้าเหมาะสม'],
+      ['c6', 'เตรียมให้ยาได้ถูกต้องตามแพทย์สั่ง']] },
+    { key: 'rec', title: 'การบันทึก CPR Record', items: [
+      ['r1', 'บันทึกอาการประเมินแรกรับ'], ['r2', 'กระบวนการตามทีม'], ['r3', 'ปฏิบัติการให้ยา CPR / V/S'], ['r4', 'สรุปรายละเอียด CPR'], ['r5', 'ประเมินผล CPR']] }
+  ];
+  function arrivalHint(role, who) {
+    const ev = S.events.find(e => e.kind === 'team' && e.meta && e.meta.role === role);
+    if (!ev) return `ยังไม่ได้บันทึก${who}มาถึง`;
+    const ph = S.proc.phone && S.proc.phone.status === 'yes' ? S.proc.phone.t : null, ref = ph || S.startMs;
+    if (!ref) return `${who}มาถึง ${hhmm(ev.t)} น.`;
+    return `${who}มาถึง ${hhmm(ev.t)} น. · ${Math.max(0, Math.round((ev.t - ref) / 60000))} นาทีหลัง${ph ? ' Phone 007' : 'เริ่ม CPR'}`;
+  }
+  function auditHint(key) {
+    if (key === 't1') { const ph = S.proc.phone; return ph ? (ph.status === 'no' ? 'บันทึกในกระบวนการว่า ไม่ได้ Phone 007' : `บันทึก Phone 007 เวลา ${hhmm(ph.t)} น.`) : 'ยังไม่ได้บันทึก Phone 007 ในกระบวนการ'; }
+    if (key === 't4') return arrivalHint('doc', 'แพทย์');
+    if (key === 't5') return arrivalHint('anes', 'วิสัญญี');
+    if (key === 'c5') { const sh = evOf('shock'); return sh.length ? `ช็อก ${sh.length} ครั้ง (${sh.map(e => e.meta.j + 'J').join(', ')})` : 'ไม่มีการช็อกไฟฟ้า'; }
+    if (key === 'c6') return `บันทึกการให้ยา ${S.events.filter(e => e.kind === 'adr' || e.kind === 'amio' || e.kind === 'drug').length} ครั้ง`;
+    if (key === 'r1') return `ติ๊กประเมินครั้งแรก ${ASSESS.filter(a => S.assess[a.key]).length} ข้อ`;
+    if (key === 'r2') return `บันทึกกระบวนการ ${PROCS.filter(x => S.proc[x.key]).length}/${PROCS.length} ขั้น`;
+    if (key === 'r3') return `ให้ยา ${S.events.filter(e => e.kind === 'adr' || e.kind === 'amio' || e.kind === 'drug').length} ครั้ง · V/S ${S.rows.filter(r => r.p || r.rr || r.sbp || r.dbp).length} ครั้ง`;
+    if (key === 'r4') { const l = postLines(); return (l.comp.length || l.proc.length || l.units.length || l.defib) ? 'กรอกรายละเอียดหลัง CPR แล้ว' : 'ยังไม่ได้กรอกรายละเอียดหลัง CPR'; }
+    if (key === 'r5') { const n = postLines().outcome.length; return n ? `ประเมินผล CPR แล้ว ${n} รายการ` : 'ยังไม่ได้กรอกประเมินผล CPR'; }
+    return '';
+  }
+  function buildAuditForm() {
+    document.getElementById('auditForm').innerHTML = AUDIT.map((sec, si) => `<div class="audit-sec"><h6><span>${si + 1}. ${esc(sec.title)}</span><span class="badge bg-success" id="auSec_${sec.key}"></span></h6>${sec.items.map((it, ii) => {
+      const k = it[0], num = `${si + 1}.${ii + 1}`;
+      return `<div class="audit-row" id="auRow_${k}">
+        <div class="audit-q"><span class="num">${num}</span>${it[2] ? `อื่นๆ <input type="text" class="form-control form-control-sm d-inline-block mt-1" style="max-width:100%" id="au_${k}_l" data-au-label="${k}" placeholder="ระบุหัวข้อ" aria-label="หัวข้ออื่นๆ ${num}">` : esc(it[1])}<small id="auHint_${k}"></small></div>
+        <div class="audit-yn">
+          <div class="form-check"><input class="form-check-input yes" type="radio" name="au_${k}" id="au_${k}_y" value="yes" data-au="${k}"><label class="form-check-label" for="au_${k}_y">Yes</label></div>
+          <div class="form-check"><input class="form-check-input no" type="radio" name="au_${k}" id="au_${k}_n" value="no" data-au="${k}"><label class="form-check-label" for="au_${k}_n">No</label></div>
+        </div>
+        <input type="text" class="form-control form-control-sm audit-reason" id="au_${k}_r" data-au-reason="${k}" placeholder="ระบุสาเหตุที่ตอบ No" aria-label="สาเหตุข้อ ${num}" hidden>
+      </div>`;
+    }).join('')}</div>`).join('');
+  }
+  function auditItemLabel(it) { const a = S.audit.ans[it[0]] || {}; return it[2] ? (a.label ? `อื่นๆ (${a.label})` : 'อื่นๆ') : it[1]; }
+  function auditCounts(sec) {
+    let yes = 0, no = 0, total = 0;
+    (sec ? [sec] : AUDIT).forEach(sc => sc.items.forEach(it => {
+      const a = S.audit.ans[it[0]] || {};
+      if (it[2] && !a.label && !a.v) return;
+      total++; if (a.v === 'yes') yes++; else if (a.v === 'no') no++;
+    }));
+    return { yes, no, total, answered: yes + no };
+  }
+  function renderAudit() {
+    AUDIT.forEach(sec => {
+      sec.items.forEach(it => {
+        const k = it[0], a = S.audit.ans[k] || {};
+        document.getElementById(`au_${k}_r`).hidden = a.v !== 'no';
+        document.getElementById(`auRow_${k}`).classList.toggle('is-no', a.v === 'no');
+      });
+      const c = auditCounts(sec);
+      document.getElementById('auSec_' + sec.key).textContent = `Yes ${c.yes}/${c.total}`;
+    });
+    const c = auditCounts(), pct = c.answered ? Math.round(c.yes / c.answered * 100) : 0;
+    document.getElementById('auditScore').innerHTML = `<span><i class="fa-solid fa-clipboard-check"></i> ประเมินแล้ว ${c.answered}/${c.total} ข้อ</span><span class="text-success">Yes ${c.yes}</span><span class="text-danger">No ${c.no}</span>${c.answered ? `<span>ผ่าน ${pct}%</span>` : ''}`;
+  }
+  function fillAudit() {
+    AUDIT.forEach(sec => sec.items.forEach(it => {
+      const k = it[0], a = S.audit.ans[k] || {};
+      document.getElementById(`au_${k}_y`).checked = a.v === 'yes';
+      document.getElementById(`au_${k}_n`).checked = a.v === 'no';
+      document.getElementById(`au_${k}_r`).value = a.reason || '';
+      if (it[2]) document.getElementById(`au_${k}_l`).value = a.label || '';
+      document.getElementById(`auHint_${k}`).textContent = auditHint(k);
+    }));
+    document.getElementById('auProblems').value = S.audit.problems || '';
+    renderAudit();
+  }
+  let auditTimer = null;
+  function onAuditInput(e) {
+    const t = e.target, ans = S.audit.ans;
+    const k = t.dataset.au || t.dataset.auReason || t.dataset.auLabel;
+    if (k) {
+      ans[k] = ans[k] || {};
+      if (t.dataset.au) ans[k].v = t.value;
+      else if (t.dataset.auReason) ans[k].reason = t.value;
+      else ans[k].label = t.value;
+    } else if (t.id === 'auProblems') S.audit.problems = t.value;
+    else return;
+    renderAudit(); save();
+    if (t.dataset.au === k && t.value === 'no') setTimeout(() => { const r = document.getElementById(`au_${k}_r`); if (r && !r.value) r.focus(); }, 30);
+    clearTimeout(auditTimer); auditTimer = setTimeout(syncAudit, 1500);
+  }
+  function auditText() {
+    const L = [], c = auditCounts();
+    L.push('แบบประเมินการช่วยฟื้นคืนชีพ');
+    const pt = [S.info.hn && `HN ${S.info.hn}`, S.startMs && `วันที่ ${new Date(S.startMs).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เริ่ม CPR ${hhmm(S.startMs)} น.`].filter(Boolean).join(' · ');
+    if (pt) L.push(pt);
+    AUDIT.forEach((sec, si) => {
+      const sc = auditCounts(sec);
+      L.push('', `${si + 1}. ${sec.title} (Yes ${sc.yes}/${sc.total})`);
+      sec.items.forEach((it, ii) => {
+        const a = S.audit.ans[it[0]] || {};
+        if (it[2] && !a.label && !a.v) return;
+        L.push(`${si + 1}.${ii + 1} ${auditItemLabel(it)}: ${a.v === 'yes' ? 'Yes' : a.v === 'no' ? 'No' + (a.reason ? ` (สาเหตุ: ${a.reason})` : '') : '-'}`);
+      });
+    });
+    L.push('', 'ปัญหาและอุปสรรค: ' + (S.audit.problems || '-'));
+    L.push('', `ผลการประเมิน: ประเมินแล้ว ${c.answered}/${c.total} ข้อ · Yes ${c.yes} · No ${c.no}${c.answered ? ` · ผ่าน ${Math.round(c.yes / c.answered * 100)}%` : ''}`);
+    if (S.info.recorder) L.push('ผู้บันทึก: ' + S.info.recorder);
+    return L.join('\n');
+  }
+  function auditPayload() {
+    const o = { case_id: caseId(), 'วันที่': thDateStr(caseRef()), 'HN': S.info.hn || '' }, reasons = [];
+    AUDIT.forEach((sec, si) => sec.items.forEach((it, ii) => {
+      const num = `${si + 1}.${ii + 1}`, a = S.audit.ans[it[0]] || {};
+      o[`${num} ${it[2] ? 'อื่นๆ' : it[1]}`] = a.v === 'yes' ? 'Yes' : a.v === 'no' ? 'No' : '';
+      if (it[2]) o[`${num} อื่นๆ (ระบุ)`] = a.label || '';
+      if (a.v === 'no' && a.reason) reasons.push(`${num}: ${a.reason}`);
+    }));
+    const c = auditCounts();
+    return Object.assign(o, { 'สาเหตุที่ตอบ No': reasons.join('\n'), 'ปัญหาและอุปสรรค': S.audit.problems || '', 'ประเมินแล้ว': c.answered, 'Yes': c.yes, 'No': c.no,
+      'ผ่าน (%)': c.answered ? Math.round(c.yes / c.answered * 100) : '', 'ผู้บันทึก': S.info.recorder || '' });
+  }
+  function syncAudit() {
+    auditTimer = null;
+    const c = auditCounts();
+    if (!c.answered && !S.audit.problems) { if (S.auditSynced) { removeRec('CPR_Audit', 'case_id', caseId()); S.auditSynced = false; lsSet(KEY, S); } return; }
+    upsert('CPR_Audit', 'case_id', auditPayload()); S.auditSynced = true; lsSet(KEY, S);
+  }
+  function setSumTab(tab) {
+    document.querySelectorAll('#sumTabs [data-tab]').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+    document.getElementById('tabSum').hidden = tab !== 'sum'; document.getElementById('tabAudit').hidden = tab !== 'audit';
+    document.getElementById('footSum').hidden = tab !== 'sum'; document.getElementById('footAudit').hidden = tab !== 'audit';
+    if (tab === 'audit') fillAudit();
+    document.querySelector('#summaryModal .modal-body').scrollTop = 0;
+  }
+
+  function fillList(id, items, empty) { const el = document.getElementById(id); el.innerHTML = items.length ? items.map(x => `<li>${esc(x)}</li>`).join('') : `<li class="text-muted">${empty}</li>`; }
+  function showSummaryModal(tab) {
+    const m = summarize();
+    document.getElementById('sumStart').innerText = S.startMs ? hms(S.startMs) : '-';
+    document.getElementById('sumTotalTime').innerText = S.startMs ? `${mmss(m.total)} (${thDur(m.total)})` : '-';
+    document.getElementById('sumOutcome').innerText = m.outcome + (m.rosc ? ` · ROSC ${hhmm(m.rosc.t)} (${tPlus(m.rosc.t)})` : '');
+    document.getElementById('sumCycles').innerText = S.startMs ? S.cycleNo + ' รอบ' : '-';
+    document.getElementById('sumFirstRhythm').innerText = m.firstEcg || '-';
+    document.getElementById('sumTube').innerText = S.proc.ett ? `${tubeDesc(S.proc.ett)} (${hhmm(S.proc.ett.t)})${tubeBy(S.proc.ett) ? ' · ' + tubeBy(S.proc.ett) : ''}` : '-';
+    document.getElementById('sumShock').innerText = m.shocks.length ? `${m.shocks.length} ครั้ง (${m.shocks.map(e => e.meta.j + 'J').join(', ')}) · ครั้งแรก ${tPlus(m.shocks[0].t)}` : 'ไม่มี';
+    document.getElementById('sumAdr').innerText = m.adr.length ? `${m.adr.length} ครั้ง · ครั้งแรก ${tPlus(m.adr[0].t)}${m.adrAvg ? ` · ห่างเฉลี่ย ${mmss(m.adrAvg)}` : ''}` : 'ไม่มี';
+    document.getElementById('sumDocTime').innerText = S.docTime;
+    document.getElementById('sumAnesTime').innerText = S.anesTime;
+    document.getElementById('sumCcf').innerText = m.ccf != null ? m.ccf + '%' : '-';
+    setBar(document.getElementById('sumCcfBar'), m.ccf || 0, m.ccf != null && m.ccf < 60 ? 'bg-danger' : null);
+    document.getElementById('sumCauses').innerText = m.causes.length ? m.causes.join(', ') : '-';
+    fillList('sumAssess', m.assess, 'ไม่ได้ติ๊ก');
+    fillList('sumProc', m.proc, 'ยังไม่ได้บันทึก');
+    fillList('sumReports', S.reports.map(reportLabel), 'ยังไม่ได้รายงาน');
+    fillList('sumMedsList', m.meds.map(e => `${hhmm(e.t)} (${tPlus(e.t)}) - ${e.text}`), 'ยังไม่มีการให้ยา');
+    const dt = drugTotals();
+    document.getElementById('sumDrugTotals').innerHTML = dt.length ? dt.map(d => `<tr><td>${esc(d.name)}</td><td class="text-center">${d.count}</td><td>${esc(d.total)}</td></tr>`).join('') : '<tr><td colspan="3" class="text-muted fw-normal">ยังไม่มีการให้ยา</td></tr>';
+    fillPost();
+    document.getElementById('sumNewCase').hidden = S.phase !== 'ended';
+    setSumTab(tab === 'audit' ? 'audit' : 'sum');
+    showModal('summaryModal');
+  }
+  function summaryText() {
+    const m = summarize(), L = [];
+    L.push('สรุปการช่วยฟื้นคืนชีพ (CPR)');
+    const pt = [S.info.hn && `HN ${S.info.hn}`, S.info.ward].filter(Boolean).join(' · '); if (pt) L.push(pt);
+    if (S.startMs) L.push(`วันที่ ${new Date(S.startMs).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} เริ่ม CPR ${hhmm(S.startMs)} น.`);
+    if (m.assess.length) { L.push('', 'ประเมินครั้งแรก'); m.assess.forEach(x => L.push('- ' + x)); }
+    if (m.proc.length) { L.push('', 'กระบวนการ'); m.proc.forEach(x => L.push(x)); }
+    L.push('', `เวลา CPR รวม ${thDur(m.total)} จำนวน ${S.cycleNo} รอบ`);
+    L.push(`ผลลัพธ์: ${m.outcome}${m.rosc ? ` ROSC เวลา ${hhmm(m.rosc.t)} น. (${tPlus(m.rosc.t)})` : ''}`);
+    if (m.firstEcg) L.push(`ECG แรก: ${m.firstEcg}`);
+    L.push(`Shock ${m.shocks.length} ครั้ง${m.shocks.length ? ` (${m.shocks.map(e => e.meta.j + 'J').join(', ')}) ครั้งแรก ${tPlus(m.shocks[0].t)}` : ''}`);
+    L.push(`Adrenaline 1 mg ${m.adr.length} ครั้ง${m.adr.length ? ` ครั้งแรก ${tPlus(m.adr[0].t)}` : ''}`);
+    const dt = drugTotals(); if (dt.length) { L.push('', 'ปริมาณยาที่ใช้'); dt.forEach(d => L.push('- ' + drugLine(d))); L.push(''); }
+    if (S.docTime !== '-') L.push(`แพทย์มาถึง ${S.docTime} น.`);
+    if (S.anesTime !== '-') L.push(`วิสัญญีมาถึง ${S.anesTime} น.`);
+    if (m.ccf != null) L.push(`สัดส่วนเวลากดหน้าอก (ประมาณ) ${m.ccf}%`);
+    if (m.causes.length) L.push('สาเหตุที่พิจารณา: ' + m.causes.join(', '));
+    if (S.reports.length) { L.push('', 'การรายงาน ISBAR'); S.reports.forEach(rp => L.push('- ' + reportLabel(rp) + (rp.orders ? ` · คำสั่ง: ${rp.orders}` : ''))); }
+    L.push('', 'CPR Record (เวลา | CPR | P | RR | ECG | BP | กิจกรรม)');
+    S.rows.slice().sort((a, b) => a.timeMs - b.timeMs).forEach(r => L.push(`${r.timeStr} (${tPlus(r.timeMs)}) | ${r.cpr ? 'CPR ✓' : '-'} | P ${r.p || '-'} | RR ${r.rr || '-'} | ${r.ecg || '-'} | BP ${rowBp(r) || '-'} | ${r.acts.join(', ') || '-'}`));
+    const pl = postLines();
+    if (pl.comp.length) L.push('', 'ภาวะแทรกซ้อนระหว่าง CPR: ' + pl.comp.join(', '));
+    if (pl.proc.length) L.push('หัตถการเพิ่มเติม: ' + pl.proc.join(', '));
+    if (pl.outcome.length) { L.push('', 'ประเมินผล CPR'); pl.outcome.forEach(x => L.push('- ' + x)); }
+    if (pl.units.length) L.push('', 'หน่วยงานที่มาช่วย: ' + pl.units.join(', '));
+    if (pl.defib) L.push('Defibrillator มาจาก: ' + pl.defib);
+    const team = [S.info.leader && `ผู้นำทีม ${S.info.leader}`, S.info.recorder && `ผู้บันทึก ${S.info.recorder}`].filter(Boolean).join(' · ');
+    if (team) L.push('', team);
+    return L.join('\n').replace(/\n{3,}/g, '\n\n');
+  }
+  function tableText() {
+    const rows = ['เวลา\tT+\tCPR\tP (BPM)\tRR (BPM)\tECG\tBP (mmHg)\tกิจกรรม / ยา'];
+    S.rows.slice().sort((a, b) => a.timeMs - b.timeMs).forEach(r => rows.push([r.timeStr, tPlus(r.timeMs), r.cpr ? '✓' : '', r.p, r.rr, r.ecg, rowBp(r), r.acts.join(', ')].map(x => String(x || '').replace(/[\t\n]/g, ' ')).join('\t')));
+    return rows.join('\n');
+  }
+  function copyText(text, okMsg) {
+    let ok = false;
+    try { const host = document.querySelector('.modal.show') || document.body; const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0'; host.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch (e) { ok = false; }
+    if (ok) { toast(okMsg); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => toast(okMsg), () => manualCopy(text));
+    else manualCopy(text);
+  }
+  function manualCopy(text) { hideModal('summaryModal'); Swal.fire({ title: 'คัดลอกข้อความ', html: 'กดค้างที่ข้อความแล้วเลือกคัดลอก', input: 'textarea', inputValue: text, inputAttributes: { readonly: true, style: 'min-height:260px;font-size:13px' }, confirmButtonText: 'ปิด' }); }
+  function copySummary() { if (!S.startMs && !S.rows.length && !headPayload()) { toast('ยังไม่มีข้อมูล', 'info'); return; } copyText(summaryText(), 'คัดลอกสรุปแล้ว วางในบันทึกทางการพยาบาลได้'); }
+  function copyTable() { if (!S.rows.length) { toast('ยังไม่มีข้อมูล', 'info'); return; } copyText(tableText(), 'คัดลอกตารางแล้ว วางใน Excel หรือ Google Sheets ได้'); }
+
+  /* ================= ผูกปุ่มและเริ่มระบบ ================= */
+  function buildDynamic() {
+    document.getElementById('checkJ').innerHTML = [120, 150, 200, 360].map(j => `<button type="button" class="btn btn-outline-danger btn-sm fw-bold" data-j="${j}">${j}J</button>`).join('');
+    document.getElementById('causesBody').innerHTML = CAUSES.map(g => `<div class="fw-bold text-success mb-2">${g[0]}</div><div class="d-flex flex-wrap gap-2 mb-3">${g[1].map(c => `<button type="button" class="btn btn-outline-success btn-sm text-start" data-cause="${c[0]}"><strong>${esc(c[1])}</strong><br><small>${esc(c[2])}</small></button>`).join('')}</div>`).join('');
+  }
+  function onModalShow(id, fn) { document.getElementById(id).addEventListener('show.bs.modal', fn); }
+  function bindEvents() {
+    const $ = id => document.getElementById(id);
+    $('bpmGroup').addEventListener('click', e => { const b = e.target.closest('[data-bpm]'); if (!b) return; settings.bpm = +b.dataset.bpm; saveSettings(); syncSettingsUI(); renderMetro(); });
+    $('modeGroup').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; S.mode = b.dataset.mode; Metro.resetPattern(); save(); renderMetro(); });
+    $('pulseChoice').addEventListener('click', e => { const b = e.target.closest('[data-pulse]'); if (!b) return; chk.pulse = chk.pulse === b.dataset.pulse ? null : b.dataset.pulse; renderCheck(); });
+    $('rhythmChoice').addEventListener('click', e => { const b = e.target.closest('[data-rh]'); if (!b) return; chk.rhythm = chk.rhythm === b.dataset.rh ? null : b.dataset.rh; renderCheck(); });
+    $('checkJ').addEventListener('click', e => { const b = e.target.closest('[data-j]'); if (!b) return; S.shockJ = +b.dataset.j; save(); renderCheck(); renderAll(); });
+    $('causesBody').addEventListener('click', e => { const b = e.target.closest('[data-cause]'); if (b) toggleCause(b.dataset.cause); });
+    // ปุ่ม "ตอนนี้" ในช่องเวลา
+    document.addEventListener('click', e => { const b = e.target.closest('.now-btn'); if (!b) return; const inp = $(b.dataset.for); inp.value = hhmm(Date.now()); inp.dispatchEvent(new Event('input', { bubbles: true })); });
+    // ประเมินครั้งแรก
+    $('assessList').addEventListener('change', e => {
+      const c = e.target.closest('input[data-key]'); if (!c) return; const key = c.dataset.key;
+      if (c.checked) { openAssess(key); return; }
+      const a = ASSESS.find(x => x.key === key);
+      Swal.fire({ title: 'ยกเลิกการติ๊ก?', text: a.label, icon: 'question', showCancelButton: true, confirmButtonText: 'ยกเลิกการติ๊ก', cancelButtonText: 'ไม่ใช่', confirmButtonColor: '#d33' })
+        .then(r => { if (r.isConfirmed) removeAssess(key); else renderAssess(); });
+    });
+    $('assessList').addEventListener('click', e => { const b = e.target.closest('[data-edit]'); if (b) openAssess(b.dataset.edit); });
+    $('assessModal').addEventListener('hidden.bs.modal', renderAssess);
+    $('asSave').addEventListener('click', saveAssess);
+    $('asRemove').addEventListener('click', () => { const k = asKey; hideModal('assessModal'); removeAssess(k); toast('ยกเลิกการติ๊กแล้ว'); });
+    // กระบวนการ
+    $('procList').addEventListener('click', e => { const b = e.target.closest('[data-proc]'); if (b) openProc(b.dataset.proc); });
+    $('pcChoice').addEventListener('click', e => { const b = e.target.closest('[data-choice]'); if (!b) return; pcChoice = b.dataset.choice; renderProcChoice(); });
+    $('pcSave').addEventListener('click', saveProc);
+    $('pcRemove').addEventListener('click', () => { delete S.proc[pcKey]; syncHead(); hideModal('procModal'); renderAll(); toast('ลบรายการแล้ว'); });
+    // ISBAR
+    Object.keys(IB_FIELDS).forEach(id => $(id).addEventListener('input', e => { S.isbar[IB_FIELDS[id]] = e.target.value; save(); document.getElementById('ibPreview').textContent = isbarText(); }));
+    $('ibSex').addEventListener('change', e => { S.isbar.sex = e.target.value; save(); renderIsbar(); });
+    Object.keys(IB_INFO).forEach(id => $(id).addEventListener('input', e => { S.info[IB_INFO[id]] = e.target.value; save(); document.getElementById('ibPreview').textContent = isbarText(); renderAll(); }));
+    $('secIsbar').addEventListener('toggle', () => { if ($('secIsbar').open) renderIsbar(); });
+    $('ibCopy').addEventListener('click', () => copyText(isbarText(), 'คัดลอก ISBAR แล้ว วางใน LINE หรือบันทึกทางการพยาบาลได้'));
+    $('ibRecord').addEventListener('click', openReport);
+    $('rpType').addEventListener('click', e => { const b = e.target.closest('[data-rt]'); if (!b) return; rpType = b.dataset.rt; renderReportType(); });
+    $('rpSave').addEventListener('click', saveReport);
+    // ET-tube
+    onModalShow('tubeModal', prefillTube);
+    $('tubeRoute').addEventListener('click', e => { const b = e.target.closest('[data-route]'); if (!b) return; if (tt.route !== b.dataset.route) { tt.route = b.dataset.route; if (!TUBE_DEPTHS[tt.route].includes(tt.depth)) tt.depth = ''; } renderTube(); });
+    $('tubeSize').addEventListener('click', e => { const b = e.target.closest('[data-size]'); if (!b) return; tt.size = b.dataset.size; $('tubeSizeCustom').value = ''; renderTube(); });
+    $('tubeDepth').addEventListener('click', e => { const b = e.target.closest('[data-depth]'); if (!b) return; tt.depth = b.dataset.depth; $('tubeDepthCustom').value = ''; renderTube(); });
+    $('tubeBy').addEventListener('click', e => { const b = e.target.closest('[data-by]'); if (!b) return; tt.by = b.dataset.by; renderTube(); });
+    ['tubeSizeCustom', 'tubeDepthCustom', 'tubeName'].forEach(id => $(id).addEventListener('input', renderTube));
+    $('tubeSave').addEventListener('click', saveTube);
+    $('tubeRemove').addEventListener('click', removeTube);
+    // ยา
+    onModalShow('medsModal', resetMed);
+    $('drugGrid').addEventListener('click', e => { const b = e.target.closest('[data-drug]'); if (b) selectDrug(b.dataset.drug); });
+    $('doseChips').addEventListener('click', e => { const b = e.target.closest('[data-dose]'); if (!b) return; md.dose = b.dataset.dose; $('doseCustom').value = ''; renderMed(); });
+    $('routeGroup').addEventListener('click', e => { const b = e.target.closest('[data-route]'); if (!b) return; S.route = b.dataset.route; save(); renderMed(); });
+    ['doseCustom', 'drugNameCustom', 'medTime'].forEach(id => $(id).addEventListener('input', renderMed));
+    $('doseUnit').addEventListener('change', renderMed);
+    $('medSave').addEventListener('click', saveMed);
+    // แถวตาราง
+    $('logTableBody').addEventListener('change', e => { const c = e.target.closest('.cpr-check'); if (c) toggleRowCpr(c.dataset.id, c.checked); });
+    $('rwSave').addEventListener('click', saveRowModal);
+    $('rwDel').addEventListener('click', () => {
+      if (!rwDelArmed) { rwDelArmed = true; const b = $('rwDel'); b.innerHTML = '<i class="fa-solid fa-trash"></i> แตะอีกครั้งเพื่อยืนยันลบ'; b.classList.replace('btn-outline-danger', 'btn-danger'); rwDelTimer = setTimeout(disarmRowDel, 4000); return; }
+      const id = rwId; disarmRowDel(); hideModal('rowModal'); deleteRowNow(id);
+    });
+    // ล้างช่องกรอกของหน้าต่างบันทึกด่วนทุกครั้งที่เปิด
+    ['rhythmModal', 'shockModal', 'vitalsModal', 'doctorModal', 'anesModal'].forEach(id => onModalShow(id, () => {
+      const m = $(id); m.querySelectorAll('input').forEach(i => { i.value = ''; });
+      m.querySelectorAll('input.time-now').forEach(i => { i.value = hhmm(Date.now()); });
+      if (id === 'doctorModal') { $('docDeptSelect').value = 'ER'; checkCustomDept(); }
+    }));
+    onModalShow('patientModal', fillPatient);
+    $('summaryModal').addEventListener('change', onPostInput);
+    $('summaryModal').addEventListener('input', e => { if (e.target.matches('input[type=text], input:not([type]), input[type=number], input[type=time]')) onPostInput(e); });
+    $('summaryModal').addEventListener('hidden.bs.modal', () => {
+      if (postTimer) { clearTimeout(postTimer); postTimer = null; syncPost(); }
+      if (auditTimer) { clearTimeout(auditTimer); auditTimer = null; syncAudit(); }
+    });
+    $('sumTabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) setSumTab(b.dataset.tab); });
+    $('tabAudit').addEventListener('change', onAuditInput);
+    $('tabAudit').addEventListener('input', e => { if (e.target.type !== 'radio') onAuditInput(e); });
+    $('auCopy').addEventListener('click', () => copyText(auditText(), 'คัดลอกแบบประเมินแล้ว'));
+    onModalShow('settingsModal', () => { syncSettingsUI(); renderConn(); });
+    $('btnTestConn').addEventListener('click', testConnection);
+    $('btnFlushQ').addEventListener('click', () => { qFail = false; clearTimeout(qTimer); flushQ(); });
+    window.addEventListener('online', () => flushQ());
+    // ตั้งค่า
+    $('stBpm').addEventListener('input', e => { settings.bpm = +e.target.value; saveSettings(); syncSettingsUI(); renderMetro(); });
+    $('stMetro').addEventListener('change', e => { settings.metro = e.target.checked; saveSettings(); renderMetro(); });
+    $('stBreath').addEventListener('change', e => { settings.breath = e.target.checked; saveSettings(); });
+    $('stPause').addEventListener('change', e => { settings.pause302 = +e.target.value; saveSettings(); });
+    $('stVoice').addEventListener('change', e => { settings.voice = e.target.checked; saveSettings(); });
+    $('stRate').addEventListener('input', e => { settings.rate = +e.target.value; saveSettings(); syncSettingsUI(); });
+    document.addEventListener('click', () => { if (isFirstInteraction) initAudio(); }, { once: true });
+    window.addEventListener('beforeunload', e => { if (S.phase === 'cpr' || S.phase === 'check') { e.preventDefault(); e.returnValue = ''; } });
+  }
+  function syncSettingsUI() {
+    const st = id => document.getElementById(id);
+    st('stBpm').value = settings.bpm; st('stBpmVal').textContent = settings.bpm;
+    st('stMetro').checked = settings.metro; st('stBreath').checked = settings.breath; st('stPause').value = String(settings.pause302);
+    st('stVoice').checked = settings.voice; st('stRate').value = settings.rate; st('stRateVal').textContent = Number(settings.rate).toFixed(2);
+    updateVoiceStatus();
+  }
+  function init() {
+    const saved = lsGet(KEY);
+    if (saved && saved.v === 3 && Array.isArray(saved.events)) S = Object.assign(blank(), saved);
+    buildDynamic(); buildPostForm(); buildAuditForm(); bindEvents(); fillPatient(); fillIsbar(); syncSettingsUI();
+    const open = S.phase === 'idle';
+    document.getElementById('secAssess').open = open; document.getElementById('secProcess').open = open;
+    if ('speechSynthesis' in window) { loadVoices(); try { window.speechSynthesis.addEventListener('voiceschanged', loadVoices); } catch (e) { window.speechSynthesis.onvoiceschanged = loadVoices; } }
+    if (isLive() && S.startMs) {
+      resumed = false; renderAll();
+      Swal.fire({ title: 'พบการทำ CPR ที่ค้างอยู่', html: `เริ่มเมื่อ <b>${hhmm(S.startMs)} น.</b> · บันทึกไว้ ${S.rows.length} แถว<br>สถานะ: ${S.phase === 'rosc' ? 'ROSC' : 'กำลัง CPR'}`, icon: 'info',
+        showDenyButton: true, confirmButtonText: 'ทำต่อ', denyButtonText: 'ล้างและเริ่มเคสใหม่', confirmButtonColor: '#198754', denyButtonColor: '#6c757d', allowOutsideClick: false, allowEscapeKey: false })
+        .then(r => {
+          if (r.isDenied) { newCase(); return; }
+          resumed = true; initAudio();
+          if (S.phase === 'cpr') { Metro.start(); keepAwake(); }
+          if (S.phase === 'check') { chk = { pulse: null, rhythm: null }; renderCheck(); showModal('checkModal'); keepAwake(); }
+          renderAll(); speakThai('บันทึกต่อจากเดิม');
+        });
+    } else renderAll();
+    if (caseHasData()) scheduleCase();
+    flushQ();
+    setInterval(tick, 250);
+    setInterval(() => { if (Q.length && !qBusy) flushQ(); }, 15000);
+    requestAnimationFrame(beatLoop);
+  }
+  init();
+  </script>
+</body>
+</html>
