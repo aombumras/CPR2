@@ -116,7 +116,7 @@
     .modal-tabs { padding: 8px 12px 0; background: #fff; border-bottom: 1px solid #dee2e6; }
     .modal-tabs .nav-tabs { border-bottom: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
     .modal-tabs .nav-tabs::-webkit-scrollbar { display: none; }
-    @media (max-width: 576px) { .modal-tabs { padding: 8px 6px 0; } .modal-tabs .nav-link { padding: 8px 9px; font-size: 0.9rem; } }
+    @media (max-width: 576px) { .modal-tabs { padding: 8px 4px 0; } .modal-tabs .nav-link { padding: 8px 7px; font-size: 0.86rem; } .modal-tabs .nav-link i { display: none; } }
     .modal-tabs .nav-link { font-weight: 700; color: #6c757d; white-space: nowrap; font-size: 0.95rem; padding: 8px 12px; }
     .modal-tabs .nav-link.active { color: var(--primary-green); border-top: 3px solid var(--bold-mint); }
 
@@ -386,8 +386,9 @@
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-2">
       <h5 class="fw-bold text-success m-0"><i class="fa-solid fa-briefcase-medical"></i> บันทึกเหตุการณ์ทางคลินิก</h5>
       <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-dark btn-sm fw-bold shadow-sm" onclick="showSummaryModal('sum')"><i class="fa-solid fa-chart-pie"></i> สรุปผล CPR</button>
-        <button class="btn btn-outline-dark btn-sm fw-bold shadow-sm" onclick="showSummaryModal('audit')"><i class="fa-solid fa-clipboard-list"></i> แบบประเมิน CPR</button>
+        <button class="btn btn-dark btn-sm fw-bold shadow-sm" onclick="showSummaryModal('sum')"><i class="fa-solid fa-chart-pie"></i> สรุป CPR</button>
+        <button class="btn btn-outline-dark btn-sm fw-bold shadow-sm" onclick="showSummaryModal('audit')"><i class="fa-solid fa-clipboard-check"></i> แบบประเมิน CPR PDF</button>
+        <button class="btn btn-outline-success btn-sm fw-bold shadow-sm" onclick="showSummaryModal('record')"><i class="fa-solid fa-file-medical"></i> CPR Record PDF</button>
         <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="showSummaryModal('report')"><i class="fa-solid fa-paper-plane"></i> ส่งรายงาน CPR</button>
       </div>
     </div>
@@ -763,16 +764,8 @@
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header bg-success text-white">
-          <h5 class="modal-title"><i class="fa-solid fa-chart-pie"></i> สรุปภาพรวม CPR (CPR Summary)</h5>
+          <h5 class="modal-title" id="sumTitle"><i class="fa-solid fa-chart-pie"></i> สรุป CPR</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="ปิด"></button>
-        </div>
-        <div class="modal-tabs">
-          <ul class="nav nav-tabs" role="tablist" id="sumTabs">
-            <li class="nav-item" role="presentation"><button class="nav-link active" type="button" role="tab" data-tab="sum" aria-selected="true"><i class="fa-solid fa-chart-pie"></i> สรุปผล<span class="d-none d-md-inline"> CPR</span></button></li>
-            <li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" data-tab="audit" aria-selected="false"><i class="fa-solid fa-clipboard-list"></i> <span class="d-none d-md-inline">แบบประเมินการช่วยฟื้นคืนชีพ</span><span class="d-md-none">แบบประเมิน</span></button></li>
-            <li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" data-tab="auditpdf" aria-selected="false"><i class="fa-solid fa-file-pdf"></i> <span class="d-none d-md-inline">แบบประเมิน CPR PDF</span><span class="d-md-none">ประเมิน PDF</span></button></li>
-            <li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" data-tab="report" aria-selected="false"><i class="fa-solid fa-paper-plane"></i> ส่งรายงาน<span class="d-none d-md-inline"> CPR</span></button></li>
-          </ul>
         </div>
         <div class="modal-body">
           <div id="tabSum">
@@ -859,13 +852,11 @@
               <h6><label for="auProblems" class="m-0">ปัญหาและอุปสรรค</label></h6>
               <textarea id="auProblems" class="form-control" rows="4" placeholder="บรรยายปัญหาและอุปสรรคที่พบระหว่างการช่วยฟื้นคืนชีพ"></textarea>
             </div>
-          </div>
-          <div id="tabAuditPdf" hidden>
-            <div class="audit-sec">
-              <h6><span><i class="fa-solid fa-file-pdf"></i> สร้าง PDF แบบประเมินในการช่วยฟื้นคืนชีพ</span><span class="badge bg-secondary" id="aqBadge"></span></h6>
-              <p class="small text-muted mb-1">ระบบนำคำตอบจากแท็บแบบประเมินมาเติมลงในแบบฟอร์ม FM-NSO-08-000 ให้ทั้งหมด ช่องที่มี <span class="req">*</span> ต้องครบก่อนสร้าง PDF</p>
+            <div class="audit-sec" id="aqSec">
+              <h6><span><i class="fa-solid fa-file-pdf"></i> สร้าง PDF แบบประเมิน</span><span class="badge bg-secondary" id="aqBadge"></span></h6>
+              <p class="small text-muted mb-1">ระบบนำคำตอบด้านบนมาเติมลงในแบบฟอร์ม FM-NSO-08-000 ให้ทั้งหมด ต้องตอบ Yes / No ครบทุกข้อ ข้อที่ตอบ No ต้องระบุสาเหตุ และกรอกช่องที่มี <span class="req">*</span> ก่อนสร้าง PDF</p>
               <div class="rq-group">
-                <div class="rq-title">ข้อมูลผู้ป่วย (หัวแบบฟอร์ม) ใช้ร่วมกับ PDF แบบบันทึก CPR</div>
+                <div class="rq-title">ข้อมูลผู้ป่วย (หัวแบบฟอร์ม) ใช้ร่วมกับ CPR Record PDF</div>
                 <div class="row g-2">
                   <div class="col-12 col-md-6"><label class="form-label" for="aqName">ชื่อ-นามสกุลผู้ป่วย <span class="req">*</span></label><input id="aqName" data-rq="name" class="form-control" autocomplete="off"></div>
                   <div class="col-6 col-md-3"><label class="form-label" for="aqHn">HN <span class="req">*</span></label><input id="aqHn" data-rq="hn" class="form-control" inputmode="numeric" autocomplete="off"></div>
@@ -874,11 +865,6 @@
                   <div class="col-4"><label class="form-label" for="aqBed">ห้อง/เตียง <span class="req">*</span></label><input id="aqBed" data-rq="bed" class="form-control" autocomplete="off" placeholder="ไม่มี ใส่ -"></div>
                   <div class="col-4"><label class="form-label" for="aqWard">Ward <span class="req">*</span></label><input id="aqWard" data-rq="ward" class="form-control" list="wardList" autocomplete="off"></div>
                 </div>
-              </div>
-              <div class="rq-group">
-                <div class="rq-title">คำตอบแบบประเมิน <span class="req">*</span> <span class="fw-normal text-muted small">ตอบ Yes / No ทุกข้อ ข้อที่ตอบ No ต้องระบุสาเหตุ</span></div>
-                <ul class="rq-status" id="aqStatus"></ul>
-                <button type="button" class="btn btn-outline-success btn-sm fw-bold mt-2" data-goto="audit"><i class="fa-solid fa-clipboard-list"></i> ไปตอบ / แก้ไขแบบประเมิน</button>
               </div>
               <div id="aqMissing" class="alert alert-warning py-2 small fw-bold mt-3 mb-0" hidden></div>
               <button type="button" class="btn btn-danger btn-lg fw-bold w-100 mt-3" id="btnAuditPdf"><i class="fa-solid fa-file-pdf"></i> สร้าง PDF แบบประเมิน CPR</button>
@@ -891,16 +877,13 @@
                   <button type="button" class="btn btn-outline-success fw-bold" id="aqShare" hidden><i class="fa-solid fa-share-nodes"></i> แชร์ / บันทึกไฟล์ลงเครื่อง</button>
                   <button type="button" class="btn btn-outline-secondary fw-bold" id="aqOpen"><i class="fa-solid fa-eye"></i> เปิดดู PDF</button>
                 </div>
+                <button type="button" class="btn btn-link btn-sm fw-bold d-block mx-auto mt-1" data-goto="report"><i class="fa-solid fa-paper-plane"></i> ไปหน้าส่งรายงาน CPR</button>
               </div>
             </div>
-            <div class="audit-sec small text-center">
-              แนบไฟล์นี้พร้อมกับ PDF แบบบันทึก CPR ในแบบฟอร์มส่งรายงาน
-              <button type="button" class="btn btn-success btn-sm fw-bold d-block mx-auto mt-2" data-goto="report"><i class="fa-solid fa-paper-plane"></i> ไปหน้าส่งรายงาน CPR</button>
-            </div>
           </div>
-          <div id="tabReport" hidden>
+          <div id="tabRecord" hidden>
             <div class="audit-sec" id="pdfSec">
-              <h6><span><i class="fa-solid fa-file-pdf"></i> 1. สร้าง PDF แบบบันทึกการกู้ชีพ</span><span class="badge bg-secondary" id="rqBadge"></span></h6>
+              <h6><span><i class="fa-solid fa-file-pdf"></i> สร้าง PDF แบบบันทึกการกู้ชีพ</span><span class="badge bg-secondary" id="rqBadge"></span></h6>
               <p class="small text-muted mb-1">ระบบเติมข้อมูลที่บันทึกไว้ลงในแบบฟอร์มเดิม CPR RECORD FORM (FM-NSO-09-003) ให้ทั้งหมด ช่องที่มี <span class="req">*</span> ต้องกรอกก่อนสร้าง PDF</p>
               <div class="rq-group">
                 <div class="rq-title">ข้อมูลผู้ป่วย (หัวแบบฟอร์ม)</div>
@@ -971,12 +954,15 @@
                   <button type="button" class="btn btn-outline-success fw-bold" id="pdfShare" hidden><i class="fa-solid fa-share-nodes"></i> แชร์ / บันทึกไฟล์ลงเครื่อง</button>
                   <button type="button" class="btn btn-outline-secondary fw-bold" id="pdfOpen"><i class="fa-solid fa-eye"></i> เปิดดู PDF</button>
                 </div>
+                <button type="button" class="btn btn-link btn-sm fw-bold d-block mx-auto mt-1" data-goto="report"><i class="fa-solid fa-paper-plane"></i> ไปหน้าส่งรายงาน CPR</button>
               </div>
             </div>
+          </div>
+          <div id="tabReport" hidden>
             <div class="audit-sec text-center">
               <i class="fa-solid fa-paper-plane fa-2x text-success mb-2"></i>
-              <h6 class="justify-content-center">2. ส่งรายงาน CPR และแนบไฟล์ PDF</h6>
-              <p class="small text-muted mb-2">แบบฟอร์มส่งรายงานจะเปิดในหน้าต่างใหม่ แนบไฟล์ PDF ทั้ง 2 ไฟล์ในช่องแนบไฟล์ของแบบฟอร์ม หน้านี้ยังเปิดค้างไว้ ข้อมูลไม่หาย</p>
+              <h6 class="justify-content-center">ส่งรายงาน CPR และแนบไฟล์ PDF</h6>
+              <p class="small text-muted mb-2">สร้าง PDF ให้ครบ 2 ไฟล์ แล้วเปิดแบบฟอร์มส่งรายงาน แนบทั้ง 2 ไฟล์ในช่องแนบไฟล์ของแบบฟอร์ม แบบฟอร์มจะเปิดในหน้าต่างใหม่ หน้านี้ยังเปิดค้างไว้ ข้อมูลไม่หาย</p>
               <ul class="rq-status text-start mb-3" id="sendStatus"></ul>
               <a class="btn btn-success btn-lg fw-bold w-100" id="formLink" href="https://docs.google.com/forms/d/e/1FAIpQLSc3u9iVbBHZ3Tv2J79udS99wsiAOqfrZwXyR3jiSv48xIXKHA/viewform" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดแบบฟอร์มส่งรายงาน CPR</a>
             </div>
@@ -998,8 +984,8 @@
             <button type="button" class="btn btn-outline-danger fw-bold" id="sumNewCase" onclick="askNewCase()"><i class="fa-solid fa-rotate"></i> เริ่มเคสใหม่</button>
           </span>
           <span id="footAudit" class="foot-group me-auto" hidden>
-            <button type="button" class="btn btn-success fw-bold" id="auCopy"><i class="fa-solid fa-copy"></i> คัดลอกแบบประเมิน</button>
-            <button type="button" class="btn btn-outline-danger fw-bold" data-goto="auditpdf"><i class="fa-solid fa-file-pdf"></i> สร้าง PDF แบบประเมิน</button>
+            <button type="button" class="btn btn-success fw-bold" id="auCopy"><i class="fa-solid fa-copy"></i> คัดลอก<span class="d-none d-sm-inline">แบบประเมิน</span></button>
+            <button type="button" class="btn btn-danger fw-bold" id="auPdfBtn"><i class="fa-solid fa-file-pdf"></i> สร้าง PDF<span class="d-none d-sm-inline"> แบบประเมิน</span></button>
           </span>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
         </div>
@@ -2280,7 +2266,7 @@
     });
     const c = auditCounts(), pct = c.answered ? Math.round(c.yes / c.answered * 100) : 0;
     document.getElementById('auditScore').innerHTML = `<span><i class="fa-solid fa-clipboard-check"></i> ประเมินแล้ว ${c.answered}/${c.total} ข้อ</span><span class="text-success">Yes ${c.yes}</span><span class="text-danger">No ${c.no}</span>${c.answered ? `<span>ผ่าน ${pct}%</span>` : ''}`;
-    markAuditMissing();
+    markAuditMissing(); renderAq();
   }
   function fillAudit() {
     AUDIT.forEach(sec => sec.items.forEach(it => {
@@ -2346,15 +2332,15 @@
     if (!c.answered && !S.audit.problems) { if (S.auditSynced) { removeRec('CPR_Audit', 'case_id', caseId()); S.auditSynced = false; lsSet(KEY, S); } return; }
     upsert('CPR_Audit', 'case_id', auditPayload()); S.auditSynced = true; lsSet(KEY, S);
   }
+  const SUM_PAGES = { sum: ['fa-chart-pie', 'สรุป CPR'], audit: ['fa-clipboard-check', 'แบบประเมิน CPR PDF'], record: ['fa-file-medical', 'CPR Record PDF'], report: ['fa-paper-plane', 'ส่งรายงาน CPR'] };
   function setSumTab(tab) {
-    document.querySelectorAll('#sumTabs [data-tab]').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
-    document.getElementById('tabSum').hidden = tab !== 'sum'; document.getElementById('tabAudit').hidden = tab !== 'audit'; document.getElementById('tabReport').hidden = tab !== 'report';
-    document.getElementById('tabAuditPdf').hidden = tab !== 'auditpdf';
+    const t = SUM_PAGES[tab] || SUM_PAGES.sum; document.getElementById('sumTitle').innerHTML = `<i class="fa-solid ${t[0]}"></i> ${t[1]}`;
+    [['sum', 'tabSum'], ['audit', 'tabAudit'], ['record', 'tabRecord'], ['report', 'tabReport']].forEach(([k, id]) => { document.getElementById(id).hidden = tab !== k; });
     document.getElementById('footSum').hidden = tab !== 'sum'; document.getElementById('footAudit').hidden = tab !== 'audit';
-    if (tab === 'audit') fillAudit();
+    if (tab === 'audit') { fillAudit(); fillAq(); }
     if (tab === 'sum') fillPost();
-    if (tab === 'report') { fillRq(); renderSendStatus(); }
-    if (tab === 'auditpdf') fillAq();
+    if (tab === 'record') fillRq();
+    if (tab === 'report') renderSendStatus();
     document.querySelector('#summaryModal .modal-body').scrollTop = 0;
   }
 
@@ -2382,7 +2368,7 @@
     document.getElementById('sumDrugTotals').innerHTML = dt.length ? dt.map(d => `<tr><td>${esc(d.name)}</td><td class="text-center">${d.count}</td><td>${esc(d.total)}</td></tr>`).join('') : '<tr><td colspan="3" class="text-muted fw-normal">ยังไม่มีการให้ยา</td></tr>';
     fillPost();
     document.getElementById('sumNewCase').hidden = S.phase !== 'ended';
-    setSumTab(['audit', 'auditpdf', 'report'].includes(tab) ? tab : 'sum');
+    setSumTab(['audit', 'record', 'report'].includes(tab) ? tab : 'sum');
     showModal('summaryModal');
   }
   function summaryText() {
@@ -2800,7 +2786,7 @@
   }
   function renderRq() {
     const miss = rqMissing(), bad = new Set(); miss.forEach(m => m.ids.forEach(id => bad.add(id)));
-    document.querySelectorAll('#tabReport [data-rq]').forEach(el => el.classList.toggle('is-invalid', rqTried && bad.has(el.id)));
+    document.querySelectorAll('#tabRecord [data-rq]').forEach(el => el.classList.toggle('is-invalid', rqTried && bad.has(el.id)));
     const b = document.getElementById('rqBadge');
     b.textContent = miss.length ? `ยังขาด ${miss.length} ช่อง` : 'ข้อมูลครบ'; b.className = 'badge ' + (miss.length ? 'bg-danger' : 'bg-success');
     const box = document.getElementById('rqMissing');
@@ -2860,8 +2846,20 @@
     aud: { out: 'aqOut', thumbs: 'aqThumbs', info: 'aqInfo', dl: 'aqDownload', share: 'aqShare', stale: 'aqStale', name: 'PDF แบบประเมินในการช่วยฟื้นคืนชีพ (FM-NSO-08-000)' }
   };
   const lastPdfs = { rec: null, aud: null };
+  // ข้อมูลที่แต่ละไฟล์ใช้ ถ้าเปลี่ยนหลังสร้าง PDF จะเตือนให้สร้างใหม่ (แก้ส่วนที่ไม่เกี่ยวกับไฟล์นั้นจะไม่เตือน)
+  function pdfSig(k) {
+    const head = [S.pdf.name, S.pdf.an, S.pdf.bed, S.info.hn, S.isbar.age, S.info.ward, caseRef()];
+    try { return JSON.stringify(k === 'aud' ? [head, S.audit] : [head, S.pdf, S.info.recorder, S.assess, S.proc, S.rows, S.events, S.segs, S.post, S.audit.problems]); } catch (e) { return String(Date.now()); }
+  }
   function markPdfStale() {
-    Object.keys(lastPdfs).forEach(k => { const p = lastPdfs[k]; if (p && !p.stale) { p.stale = true; const el = document.getElementById(PDF_SLOT[k].stale); if (el) el.hidden = false; } });
+    let changed = false;
+    Object.keys(lastPdfs).forEach(k => {
+      const p = lastPdfs[k]; if (!p) return;
+      const stale = pdfSig(k) !== p.sig; if (stale === p.stale) return;
+      p.stale = stale; changed = true;
+      const el = document.getElementById(PDF_SLOT[k].stale); if (el) el.hidden = !stale;
+    });
+    if (changed) renderSendStatus();
   }
   function pdfFileName(prefix) {
     const d = new Date(caseRef()), hn = pdfStr(S.info.hn).replace(/[^0-9A-Za-z-]/g, '');
@@ -2901,7 +2899,7 @@
   function showPdfOut(k, blob, pages, fname) {
     clearPdfSlot(k);
     const ids = PDF_SLOT[k], url = URL.createObjectURL(blob), thumbs = pages.map(p => URL.createObjectURL(p.blob));
-    const p = lastPdfs[k] = { blob, url, thumbs, fname, at: Date.now(), stale: false };
+    const p = lastPdfs[k] = { blob, url, thumbs, fname, at: Date.now(), stale: false, sig: pdfSig(k) };
     document.getElementById(ids.thumbs).innerHTML = thumbs.map((u, i) => `<a href="${u}" target="_blank" rel="noopener" class="pdf-thumb"><img src="${u}" alt="ตัวอย่างหน้า ${i + 1}"><span>หน้า ${i + 1}</span></a>`).join('');
     const dl = document.getElementById(ids.dl); dl.href = url; dl.download = fname;
     document.getElementById(ids.info).textContent = `${fname} · ${pages.length} หน้า · ${Math.max(1, Math.round(blob.size / 1024))} KB · สร้างเมื่อ ${hhmm(p.at)} น.`;
@@ -2920,10 +2918,10 @@
   // สถานะไฟล์ที่ต้องแนบ ในขั้นตอนส่งรายงาน
   function renderSendStatus() {
     const el = document.getElementById('sendStatus'); if (!el) return;
-    el.innerHTML = [['rec', 'report'], ['aud', 'auditpdf']].map(([k, tab]) => {
+    el.innerHTML = [['aud', 'audit'], ['rec', 'record']].map(([k, tab]) => {
       const p = lastPdfs[k], ok = p && !p.stale;
       const val = p ? (p.stale ? `สร้างเมื่อ ${hhmm(p.at)} น. แต่มีการแก้ไขข้อมูลภายหลัง ควรสร้างใหม่` : `สร้างแล้ว ${hhmm(p.at)} น.`) : 'ยังไม่ได้สร้าง';
-      return `<li class="${ok ? 'ok' : 'empty'}"><i class="fa-solid ${ok ? 'fa-circle-check' : 'fa-circle-minus'}"></i><span><b>${esc(PDF_SLOT[k].name)}</b> · ${esc(val)}</span>${k === 'aud' || !ok ? `<button type="button" class="btn btn-link btn-sm" data-goto="${tab}">${ok ? 'เปิด' : 'ไปสร้าง'}</button>` : ''}</li>`;
+      return `<li class="${ok ? 'ok' : 'empty'}"><i class="fa-solid ${ok ? 'fa-circle-check' : 'fa-circle-minus'}"></i><span><b>${esc(PDF_SLOT[k].name)}</b> · ${esc(val)}</span><button type="button" class="btn btn-link btn-sm" data-goto="${tab}">${ok ? 'ดูไฟล์' : p ? 'สร้างใหม่' : 'ไปสร้าง'}</button></li>`;
     }).join('');
   }
 
@@ -3078,20 +3076,11 @@
   function renderAq() {
     if (!document.getElementById('aqBadge')) return;
     const miss = aqMissing(), bad = new Set(); miss.forEach(m => m.ids.forEach(id => bad.add(id)));
-    document.querySelectorAll('#tabAuditPdf [data-rq]').forEach(el => el.classList.toggle('is-invalid', aqTried && bad.has(el.id)));
+    document.querySelectorAll('#aqSec [data-rq]').forEach(el => el.classList.toggle('is-invalid', aqTried && bad.has(el.id)));
     const b = document.getElementById('aqBadge');
     b.textContent = miss.length ? `ยังขาด ${miss.length} รายการ` : 'ข้อมูลครบ'; b.className = 'badge ' + (miss.length ? 'bg-danger' : 'bg-success');
     const box = document.getElementById('aqMissing');
     box.hidden = !(aqTried && miss.length); box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> กรอกให้ครบก่อนสร้าง PDF: ${miss.map(m => esc(m.label)).join(', ')}`;
-    const am = auditMissing();
-    const secs = AUDIT.map((sec, si) => {
-      const c = auditCounts(sec), left = am.filter(x => sec.items.some(it => it[0] === x.k));
-      const val = `Yes ${c.yes} · No ${c.no}${left.length ? ` · ยังไม่ครบ ${left.length} ข้อ` : ''}`;
-      return `<li class="${left.length ? 'empty' : 'ok'}"><i class="fa-solid ${left.length ? 'fa-circle-exclamation text-danger' : 'fa-circle-check'}"></i><span><b>${si + 1}. ${esc(sec.title)}</b> · ${esc(val)}</span></li>`;
-    });
-    const prob = pdfStr(S.audit.problems);
-    secs.push(`<li class="${prob ? 'ok' : 'empty'}"><i class="fa-solid ${prob ? 'fa-circle-check' : 'fa-circle-minus'}"></i><span><b>ปัญหาอุปสรรค</b> · ${prob ? 'กรอกแล้ว' : 'ยังว่าง (ไม่บังคับ)'}</span></li>`);
-    document.getElementById('aqStatus').innerHTML = secs.join('');
   }
   // ไฮไลต์ข้อที่ยังไม่ครบในแท็บแบบประเมิน หลังกดสร้าง PDF
   function markAuditMissing() {
@@ -3105,14 +3094,13 @@
   }
   async function makeAuditPdf() {
     if (pdfBusy) return;
-    aqTried = true; const miss = aqMissing(); renderAq();
+    aqTried = true; auTried = true; renderAudit();
+    const miss = aqMissing();
     if (miss.length) {
-      const head = miss.find(m => m.ids.length);
-      if (head) { focusMissing(head.ids[0]); toast(`กรอกข้อมูลให้ครบก่อนสร้าง PDF (ขาด ${miss.length} รายการ)`, 'warning'); return; }
-      auTried = true; setSumTab('audit');
-      const first = auditMissing()[0];
-      if (first) setTimeout(() => focusMissing(first.what === 'reason' ? `au_${first.k}_r` : first.what === 'label' ? `au_${first.k}_l` : `auRow_${first.k}`), 80);
-      toast('ตอบแบบประเมินให้ครบก่อนสร้าง PDF', 'warning'); return;
+      // คำถามอยู่ด้านบน ข้อมูลผู้ป่วยอยู่ด้านล่าง เลื่อนไปจุดแรกที่ยังขาด
+      const first = auditMissing()[0], head = miss.find(m => m.ids.length);
+      focusMissing(first ? (first.what === 'reason' ? `au_${first.k}_r` : first.what === 'label' ? `au_${first.k}_l` : `auRow_${first.k}`) : head.ids[0]);
+      toast(`ตอบแบบประเมินและกรอกข้อมูลให้ครบก่อนสร้าง PDF (ขาด ${miss.length} รายการ)`, 'warning'); return;
     }
     await runPdf('aud', 'btnAuditPdf', aqRender, pdfFileName('CPR-Evaluation'), `CPR Evaluation FM-NSO-08-000 HN ${pdfStr(S.info.hn)} ${thDateStr(caseRef())}`);
   }
@@ -3196,20 +3184,18 @@
       if (postTimer) { clearTimeout(postTimer); postTimer = null; syncPost(); }
       if (auditTimer) { clearTimeout(auditTimer); auditTimer = null; syncAudit(); }
     });
-    $('sumTabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) setSumTab(b.dataset.tab); });
-    $('tabAudit').addEventListener('change', onAuditInput);
-    $('tabAudit').addEventListener('input', e => { if (e.target.type !== 'radio') onAuditInput(e); });
+    $('tabAudit').addEventListener('change', e => { if (e.target.dataset.rq) onRqInput(e); else onAuditInput(e); });
+    $('tabAudit').addEventListener('input', e => { const t = e.target; if (t.dataset.rq) { if (t.type !== 'radio' && t.type !== 'checkbox') onRqInput(e); } else if (t.type !== 'radio') onAuditInput(e); });
+    $('auPdfBtn').addEventListener('click', makeAuditPdf);
     $('auCopy').addEventListener('click', () => copyText(auditText(), 'คัดลอกแบบประเมินแล้ว'));
     // สร้าง PDF แบบบันทึกการกู้ชีพ
-    $('tabReport').addEventListener('input', e => { const t = e.target; if (t.dataset.rq && t.type !== 'radio' && t.type !== 'checkbox') onRqInput(e); });
-    $('tabReport').addEventListener('change', e => { if (e.target.dataset.rq) onRqInput(e); });
+    $('tabRecord').addEventListener('input', e => { const t = e.target; if (t.dataset.rq && t.type !== 'radio' && t.type !== 'checkbox') onRqInput(e); });
+    $('tabRecord').addEventListener('change', e => { if (e.target.dataset.rq) onRqInput(e); });
     $('summaryModal').addEventListener('click', e => { const b = e.target.closest('[data-goto]'); if (b) setSumTab(b.dataset.goto); });
     $('btnPdf').addEventListener('click', makePdfReport);
     $('pdfShare').addEventListener('click', () => sharePdf('rec'));
     $('pdfOpen').addEventListener('click', () => openPdf('rec'));
     // PDF แบบประเมินในการช่วยฟื้นคืนชีพ
-    $('tabAuditPdf').addEventListener('input', e => { const t = e.target; if (t.dataset.rq && t.type !== 'radio' && t.type !== 'checkbox') onRqInput(e); });
-    $('tabAuditPdf').addEventListener('change', e => { if (e.target.dataset.rq) onRqInput(e); });
     $('btnAuditPdf').addEventListener('click', makeAuditPdf);
     $('aqShare').addEventListener('click', () => sharePdf('aud'));
     $('aqOpen').addEventListener('click', () => openPdf('aud'));
