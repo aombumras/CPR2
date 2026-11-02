@@ -856,14 +856,14 @@
               <h6><span><i class="fa-solid fa-file-pdf"></i> สร้าง PDF แบบประเมิน</span><span class="badge bg-secondary" id="aqBadge"></span></h6>
               <p class="small text-muted mb-1">ระบบนำคำตอบด้านบนมาเติมลงในแบบฟอร์ม FM-NSO-08-000 ให้ทั้งหมด ต้องตอบ Yes / No ครบทุกข้อ ข้อที่ตอบ No ต้องระบุสาเหตุ และกรอกช่องที่มี <span class="req">*</span> ก่อนสร้าง PDF</p>
               <div class="rq-group">
-                <div class="rq-title">ข้อมูลผู้ป่วย (หัวแบบฟอร์ม) ใช้ร่วมกับ CPR Record PDF</div>
+                <div class="rq-title">ข้อมูลผู้ป่วย (หัวแบบฟอร์ม) ใช้ร่วมกับ CPR Record PDF <span class="fw-normal text-muted small">บังคับเฉพาะ HN</span></div>
                 <div class="row g-2">
-                  <div class="col-12 col-md-6"><label class="form-label" for="aqName">ชื่อ-นามสกุลผู้ป่วย <span class="req">*</span></label><input id="aqName" data-rq="name" class="form-control" autocomplete="off"></div>
+                  <div class="col-12 col-md-6"><label class="form-label" for="aqName">ชื่อ-นามสกุลผู้ป่วย</label><input id="aqName" data-rq="name" class="form-control" autocomplete="off"></div>
                   <div class="col-6 col-md-3"><label class="form-label" for="aqHn">HN <span class="req">*</span></label><input id="aqHn" data-rq="hn" class="form-control" inputmode="numeric" autocomplete="off"></div>
-                  <div class="col-6 col-md-3"><label class="form-label" for="aqAn">AN <span class="req">*</span></label><input id="aqAn" data-rq="an" class="form-control" autocomplete="off" placeholder="ไม่มี ใส่ -"></div>
-                  <div class="col-4"><label class="form-label" for="aqAge">อายุ (ปี) <span class="req">*</span></label><input id="aqAge" data-rq="age" class="form-control" autocomplete="off"></div>
-                  <div class="col-4"><label class="form-label" for="aqBed">ห้อง/เตียง <span class="req">*</span></label><input id="aqBed" data-rq="bed" class="form-control" autocomplete="off" placeholder="ไม่มี ใส่ -"></div>
-                  <div class="col-4"><label class="form-label" for="aqWard">Ward <span class="req">*</span></label><input id="aqWard" data-rq="ward" class="form-control" list="wardList" autocomplete="off"></div>
+                  <div class="col-6 col-md-3"><label class="form-label" for="aqAn">AN</label><input id="aqAn" data-rq="an" class="form-control" autocomplete="off" placeholder="ถ้ามี"></div>
+                  <div class="col-4"><label class="form-label" for="aqAge">อายุ (ปี)</label><input id="aqAge" data-rq="age" class="form-control" autocomplete="off"></div>
+                  <div class="col-4"><label class="form-label" for="aqBed">ห้อง/เตียง</label><input id="aqBed" data-rq="bed" class="form-control" autocomplete="off" placeholder="ถ้ามี"></div>
+                  <div class="col-4"><label class="form-label" for="aqWard">Ward</label><input id="aqWard" data-rq="ward" class="form-control" list="wardList" autocomplete="off"></div>
                 </div>
               </div>
               <div id="aqMissing" class="alert alert-warning py-2 small fw-bold mt-3 mb-0" hidden></div>
@@ -886,14 +886,14 @@
               <h6><span><i class="fa-solid fa-file-pdf"></i> สร้าง PDF แบบบันทึกการกู้ชีพ</span><span class="badge bg-secondary" id="rqBadge"></span></h6>
               <p class="small text-muted mb-1">ระบบเติมข้อมูลที่บันทึกไว้ลงในแบบฟอร์มเดิม CPR RECORD FORM (FM-NSO-09-003) ให้ทั้งหมด ช่องที่มี <span class="req">*</span> ต้องกรอกก่อนสร้าง PDF</p>
               <div class="rq-group">
-                <div class="rq-title">ข้อมูลผู้ป่วย (หัวแบบฟอร์ม)</div>
+                <div class="rq-title">ข้อมูลผู้ป่วย (หัวแบบฟอร์ม) <span class="fw-normal text-muted small">บังคับเฉพาะ HN</span></div>
                 <div class="row g-2">
-                  <div class="col-12 col-md-6"><label class="form-label" for="rqName">ชื่อ-นามสกุลผู้ป่วย <span class="req">*</span></label><input id="rqName" data-rq="name" class="form-control" autocomplete="off"></div>
+                  <div class="col-12 col-md-6"><label class="form-label" for="rqName">ชื่อ-นามสกุลผู้ป่วย</label><input id="rqName" data-rq="name" class="form-control" autocomplete="off"></div>
                   <div class="col-6 col-md-3"><label class="form-label" for="rqHn">HN <span class="req">*</span></label><input id="rqHn" data-rq="hn" class="form-control" inputmode="numeric" autocomplete="off"></div>
-                  <div class="col-6 col-md-3"><label class="form-label" for="rqAn">AN <span class="req">*</span></label><input id="rqAn" data-rq="an" class="form-control" autocomplete="off" placeholder="ไม่มี ใส่ -"></div>
-                  <div class="col-4 col-md-3"><label class="form-label" for="rqAge">อายุ (ปี) <span class="req">*</span></label><input id="rqAge" data-rq="age" class="form-control" autocomplete="off"></div>
-                  <div class="col-4 col-md-3"><label class="form-label" for="rqBed">ห้อง/เตียง <span class="req">*</span></label><input id="rqBed" data-rq="bed" class="form-control" autocomplete="off" placeholder="ไม่มี ใส่ -"></div>
-                  <div class="col-4 col-md-3"><label class="form-label" for="rqWard">Ward <span class="req">*</span></label><input id="rqWard" data-rq="ward" class="form-control" list="wardList" autocomplete="off"></div>
+                  <div class="col-6 col-md-3"><label class="form-label" for="rqAn">AN</label><input id="rqAn" data-rq="an" class="form-control" autocomplete="off" placeholder="ถ้ามี"></div>
+                  <div class="col-4 col-md-3"><label class="form-label" for="rqAge">อายุ (ปี)</label><input id="rqAge" data-rq="age" class="form-control" autocomplete="off"></div>
+                  <div class="col-4 col-md-3"><label class="form-label" for="rqBed">ห้อง/เตียง</label><input id="rqBed" data-rq="bed" class="form-control" autocomplete="off" placeholder="ถ้ามี"></div>
+                  <div class="col-4 col-md-3"><label class="form-label" for="rqWard">Ward</label><input id="rqWard" data-rq="ward" class="form-control" list="wardList" autocomplete="off"></div>
                   <div class="col-12 col-md-3 d-flex align-items-end"><div class="form-check mb-1"><input class="form-check-input" type="checkbox" id="rqChild" data-rq="child"><label class="form-check-label small fw-bold" for="rqChild">ผู้ป่วยเด็ก (ลงขนาดยาเป็น mg / ml)</label></div></div>
                 </div>
               </div>
@@ -2746,12 +2746,7 @@
   function rqMissing() {
     const m = [], need = (ok, ids, label) => { if (!ok) m.push({ ids: [].concat(ids), label }); };
     const P = S.pdf, now = Date.now() + 60000, ph = S.proc.phone, bls = S.proc.bls, stop = S.post.stopT;
-    need(pdfStr(P.name), 'rqName', 'ชื่อ-นามสกุลผู้ป่วย');
     need(pdfStr(S.info.hn), 'rqHn', 'HN');
-    need(pdfStr(P.an), 'rqAn', 'AN');
-    need(pdfStr(S.isbar.age), 'rqAge', 'อายุ');
-    need(pdfStr(P.bed), 'rqBed', 'ห้อง/เตียง');
-    need(pdfStr(S.info.ward), 'rqWard', 'Ward');
     if (!ph) need(false, rqPhoneDraft === 'yes' ? 'rqPhoneT' : ['rqPhoneNo', 'rqPhoneYes'], rqPhoneDraft === 'yes' ? 'เวลา Phone 007' : 'Phone รหัส 007 (โฟน / ไม่ได้โฟน)');
     else if (ph.status === 'yes') need(ph.t && ph.t <= now, 'rqPhoneT', ph.t ? 'เวลา Phone 007 (เกินเวลาปัจจุบัน)' : 'เวลา Phone 007');
     need(bls && bls.t && bls.t <= now, 'rqBls', bls && bls.t ? 'เวลาเริ่ม BLS (เกินเวลาปัจจุบัน)' : 'เวลาเริ่ม BLS');
@@ -3056,12 +3051,7 @@
   }
   function aqMissing() {
     const m = [], need = (ok, id, label) => { if (!ok) m.push({ ids: [id], label }); }, P = S.pdf;
-    need(pdfStr(P.name), 'aqName', 'ชื่อ-นามสกุลผู้ป่วย');
     need(pdfStr(S.info.hn), 'aqHn', 'HN');
-    need(pdfStr(P.an), 'aqAn', 'AN');
-    need(pdfStr(S.isbar.age), 'aqAge', 'อายุ');
-    need(pdfStr(P.bed), 'aqBed', 'ห้อง/เตียง');
-    need(pdfStr(S.info.ward), 'aqWard', 'Ward');
     const am = auditMissing(), nums = w => am.filter(x => x.what === w).map(x => x.num);
     if (nums('ans').length) m.push({ ids: [], audit: true, label: `ตอบ Yes / No ให้ครบ (ยังไม่ตอบข้อ ${nums('ans').join(', ')})` });
     if (nums('reason').length) m.push({ ids: [], audit: true, label: `ระบุสาเหตุข้อที่ตอบ No (ข้อ ${nums('reason').join(', ')})` });
