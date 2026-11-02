@@ -171,8 +171,24 @@
     @keyframes duePulse { 50% { box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.45); } }
     .btn-suggest { box-shadow: 0 0 0 4px rgba(32, 201, 151, 0.55) !important; }
 
-    .table-container { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid var(--bold-mint); }
+    .table-container { background: white; border-radius: 15px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 4px solid var(--bold-mint); }
     .cpr-table th, .cpr-table td { white-space: nowrap; }
+    /* ตรึงคอลัมน์เวลา (ซ้าย) และปุ่มแก้ไข (ขวา) ไว้ เลื่อนดูคอลัมน์กลางได้โดยปุ่มแก้ไขยังมองเห็นเสมอ */
+    .cpr-table th:first-child, .cpr-table td:first-child { position: sticky; left: 0; z-index: 2; box-shadow: 3px 0 4px -2px rgba(0,0,0,0.12); }
+    .cpr-table th:last-child, .cpr-table td:last-child { position: sticky; right: 0; z-index: 2; box-shadow: -3px 0 4px -2px rgba(0,0,0,0.12); }
+    .cpr-table .empty-row td { position: static; box-shadow: none; }
+    .cpr-table tbody tr:not(.empty-row) { cursor: pointer; }
+    .row-btns { display: inline-flex; gap: 4px; }
+    .scroll-hint { display: none; }
+    @media (max-width: 576px) {
+      .table-container.p-2 { padding: 4px !important; }
+      .cpr-table { font-size: 0.88rem; }
+      .cpr-table > :not(caption) > * > * { padding: 0.4rem 0.45rem; }
+      .cpr-table td.acts { min-width: 170px !important; }
+      .row-btns { flex-direction: column; }
+      .row-btns .btn { padding: 0.3rem 0.5rem; }
+      .scroll-hint { display: block; }
+    }
     .cpr-table td.acts { white-space: normal; min-width: 220px; }
     .cpr-table .form-check-input { width: 1.45em; height: 1.45em; margin: 0; cursor: pointer; }
     .t-plus { display: block; font-size: 0.78rem; color: #6c757d; font-weight: 400; font-variant-numeric: tabular-nums; }
@@ -414,7 +430,7 @@
       <div class="col-12 col-md"><button class="btn btn-outline-success w-100 action-btn" onclick="openIsbar()"><i class="fa-solid fa-comments fa-2x"></i>รายงาน ISBAR / ส่งเวร</button></div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-end mb-2">
+    <div class="d-flex justify-content-between align-items-end mb-2" id="tableHead">
       <h5 class="fw-bold text-success m-0"><i class="fa-solid fa-table-list"></i> ตาราง CPR Record</h5>
       <button class="btn btn-outline-success btn-sm fw-bold" onclick="openRowModal(null)"><i class="fa-solid fa-plus"></i> เพิ่มแถว</button>
     </div>
@@ -435,7 +451,7 @@
         <tbody id="logTableBody"></tbody>
       </table>
     </div>
-    <div class="small text-muted mt-2">เวลาเป็นเวลาจริงที่บันทึก แตะ <i class="fa-solid fa-pen"></i> เพื่อแก้ไขเวลาและข้อมูลในแถวภายหลัง ติ๊กช่อง CPR ได้โดยตรง</div>
+    <div class="small text-muted mt-2">เวลาเป็นเวลาจริงที่บันทึก แตะแถวหรือ <i class="fa-solid fa-pen"></i> เพื่อแก้ไขเวลาและข้อมูลในแถวภายหลัง ติ๊กช่อง CPR ได้โดยตรง<span class="scroll-hint"><i class="fa-solid fa-left-right"></i> ปัดตารางซ้าย-ขวาเพื่อดูครบทุกช่อง</span></div>
 
   </div>
 
@@ -1992,7 +2008,7 @@
       <td class="text-center"><input class="form-check-input cpr-check" type="checkbox" data-id="${esc(r.id)}"${r.cpr ? ' checked' : ''} aria-label="CPR เวลา ${esc(r.timeStr)}"></td>
       <td>${esc(r.p || '-')}</td><td>${esc(r.rr || '-')}</td><td>${esc(r.ecg || '-')}</td><td>${esc(rowBp(r) || '-')}</td>
       <td class="acts">${r.acts.length ? r.acts.map(esc).join('<br>') : '-'}</td>
-      <td class="text-center"><button class="btn btn-sm btn-outline-success me-1" onclick="openRowModal('${esc(r.id)}')" aria-label="แก้ไข"><i class="fa-solid fa-pen"></i></button><button class="btn btn-sm btn-outline-danger" onclick="deleteRow('${esc(r.id)}')" aria-label="ลบ"><i class="fa-solid fa-trash"></i></button></td>
+      <td class="text-center"><div class="row-btns"><button class="btn btn-sm btn-outline-success" onclick="openRowModal('${esc(r.id)}')" aria-label="แก้ไข"><i class="fa-solid fa-pen"></i></button><button class="btn btn-sm btn-outline-danger" onclick="deleteRow('${esc(r.id)}')" aria-label="ลบ"><i class="fa-solid fa-trash"></i></button></div></td>
     </tr>`).join('');
   }
   function renderCheck() {
@@ -3156,6 +3172,10 @@
     $('medSave').addEventListener('click', saveMed);
     // แถวตาราง
     $('logTableBody').addEventListener('change', e => { const c = e.target.closest('.cpr-check'); if (c) toggleRowCpr(c.dataset.id, c.checked); });
+    $('logTableBody').addEventListener('click', e => {
+      if (e.target.closest('input, button, a, label')) return;
+      const tr = e.target.closest('tr[id]'); if (tr && S.rows.some(r => r.id === tr.id)) openRowModal(tr.id);
+    });
     $('rwSave').addEventListener('click', saveRowModal);
     $('rwDel').addEventListener('click', () => {
       if (!rwDelArmed) { rwDelArmed = true; const b = $('rwDel'); b.innerHTML = '<i class="fa-solid fa-trash"></i> แตะอีกครั้งเพื่อยืนยันลบ'; b.classList.replace('btn-outline-danger', 'btn-danger'); rwDelTimer = setTimeout(disarmRowDel, 4000); return; }
